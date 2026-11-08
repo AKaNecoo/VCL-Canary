@@ -114,6 +114,17 @@ jobs:
 
           Copy-Item -LiteralPath 'artifacts/update-helper/VRCLearn.UpdateHelper.exe' -Destination 'artifacts/publish'
 
+      - name: Verify licenses are included
+        shell: pwsh
+        run: |
+          foreach ($name in @('LICENSE', 'THIRD-PARTY-NOTICES.txt')) {
+            $source = (Get-FileHash -LiteralPath $name).Hash
+            $published = (Get-FileHash -LiteralPath "artifacts/publish/$name").Hash
+            if (!$published -or $published -ne $source) {
+              throw "Published license file '$name' is missing or different."
+            }
+          }
+
       - name: Build installer and checksum
         shell: pwsh
         run: |

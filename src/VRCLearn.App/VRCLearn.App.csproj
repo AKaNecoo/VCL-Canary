@@ -32,6 +32,9 @@
 
   <ItemGroup>
     <None Update="Localization\*.json" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="..\..\LICENSE" Link="LICENSE" CopyToPublishDirectory="PreserveNewest" />
+    <Content Include="..\..\THIRD-PARTY-NOTICES.txt" Link="THIRD-PARTY-NOTICES.txt" CopyToPublishDirectory="PreserveNewest" />
+    <EmbeddedResource Include="..\..\LICENSE" Link="Assets\LICENSE" LogicalName="ProjectLicense" />
     <EmbeddedResource Include="..\..\THIRD-PARTY-NOTICES.txt" Link="Assets\THIRD-PARTY-NOTICES.txt" LogicalName="ThirdPartyNotices" />
   </ItemGroup>
 
