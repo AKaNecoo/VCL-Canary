@@ -86,7 +86,7 @@ public sealed class GuiConfigStore
         return true;
     }
 
-    public bool TrySetLauncherUpdateChannel(string channel)
+    public bool TrySetLauncherUpdateChannel(string channel, bool disableAutoUpdate)
     {
         lock (_gate)
         {
@@ -98,11 +98,18 @@ public sealed class GuiConfigStore
             }
 
             var previous = config.LauncherUpdateChannel;
+            var previousAutoUpdate = config.LauncherAutoUpdate;
             config.LauncherUpdateChannel = channel;
+
+            if (disableAutoUpdate)
+            {
+                config.LauncherAutoUpdate = false;
+            }
 
             if (!JsonFileStore.Save(_paths.GuiConfigFile, config, Complain))
             {
                 config.LauncherUpdateChannel = previous;
+                config.LauncherAutoUpdate = previousAutoUpdate;
                 return false;
             }
         }

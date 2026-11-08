@@ -70,6 +70,7 @@ public sealed partial class UpdateViewModel : ObservableObject
             new("stable", () => _localization["Settings.Update.Channel.Stable"]),
             new("beta", "Beta"),
             new("alpha", "Alpha"),
+            new(UpdateService.OfficialDownloadChannel, () => _localization["Settings.Update.Channel.Official"]),
         ];
         _canInstall = updater.CanInstall;
         _useDownloadPage = ShouldUseDownloadPage();
@@ -92,6 +93,7 @@ public sealed partial class UpdateViewModel : ObservableObject
         {
             OnPropertyChanged(nameof(AutoUpdateEnabled));
             OnPropertyChanged(nameof(SelectedUpdateChannel));
+            RefreshUpdateRoute();
         };
     }
 
@@ -138,13 +140,13 @@ public sealed partial class UpdateViewModel : ObservableObject
 
     public bool CanAutoUpdate => _canInstall && !_useDownloadPage;
 
-    public string AutoUpdateHint => _localization[_useDownloadPage
-        ? "Settings.Update.AutoUpdateProxyHint"
-        : "Settings.Update.AutoUpdateHint"];
+    public string AutoUpdateHint => _localization[_service.UsesOfficialDownloadPage
+        ? "Settings.Update.AutoUpdateOfficialHint"
+        : _useDownloadPage ? "Settings.Update.AutoUpdateProxyHint" : "Settings.Update.AutoUpdateHint"];
 
     public bool AutoUpdateEnabled
     {
-        get => _canInstall && _configs.Current.LauncherAutoUpdate;
+        get => _canInstall && !_service.UsesOfficialDownloadPage && _configs.Current.LauncherAutoUpdate;
         set
         {
             if (!CanAutoUpdate || value == AutoUpdateEnabled)
@@ -198,6 +200,7 @@ public sealed partial class UpdateViewModel : ObservableObject
 
     public string ButtonText => Phase switch
     {
+        _ when _service.UsesOfficialDownloadPage => _localization["Settings.Update.Stage"],
         UpdatePhase.Pending => _localization["Settings.Update.CancelPending"],
         _ when _useDownloadPage => _localization["Settings.Update.Stage"],
         UpdatePhase.UpToDate => _localization["Settings.Update.UpToDate"],
@@ -209,6 +212,7 @@ public sealed partial class UpdateViewModel : ObservableObject
 
     public string StatusText => Phase switch
     {
+        _ when _service.UsesOfficialDownloadPage => "",
         UpdatePhase.Downloading => _localization.Format("Settings.Update.Downloading", Percent),
         UpdatePhase.Pending => _localization.Format("Settings.Update.Pending", Version ?? ""),
         UpdatePhase.InstallFailed when _useDownloadPage => _localization["Settings.Update.InstallFailedDownloadPage"],
@@ -242,9 +246,9 @@ public sealed partial class UpdateViewModel : ObservableObject
     private bool ShouldUseDownloadPage()
     {
         var language = _localization.CurrentLanguage;
-        return !_proxy.IsConfigured
+        return _service.UsesOfficialDownloadPage || (!_proxy.IsConfigured
             && (language.Equals("zh", StringComparison.OrdinalIgnoreCase)
-                || language.StartsWith("zh-", StringComparison.OrdinalIgnoreCase));
+                || language.StartsWith("zh-", StringComparison.OrdinalIgnoreCase)));
     }
 
     private void RefreshUpdateRoute()
@@ -298,7 +302,7 @@ public sealed partial class UpdateViewModel : ObservableObject
     [RelayCommand(CanExecute = nameof(CanAct))]
     private async Task Act()
     {
-        if (_useDownloadPage && Phase != UpdatePhase.Pending)
+        if (_useDownloadPage && (Phase != UpdatePhase.Pending || _service.UsesOfficialDownloadPage))
         {
             OpenDownload(_service.BrowserDownloadUrl);
             return;

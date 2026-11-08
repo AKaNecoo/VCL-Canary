@@ -13,6 +13,8 @@ public enum UpdateKind
     UpdateAvailable,
 
     Failed,
+
+    ManualDownload,
 }
 
 public sealed record UpdateStatus(UpdateKind Kind, string? Version = null, string? DownloadUrl = null);
@@ -26,6 +28,8 @@ public sealed class UpdateService(
 
     private const string DefaultReleaseApiUrl =
         "https://api.github.com/repos/VRLearn-Official/VRCLearn_Launcher/releases/latest";
+
+    public const string OfficialDownloadChannel = "official";
 
     public const string DefaultDownloadUrl = "https://start.gamemode1.com/pages/vrclearnlauncher/";
 
@@ -45,10 +49,16 @@ public sealed class UpdateService(
     public string CurrentVersionText => _fork?.CurrentText ?? CurrentVersion.ToString();
 
     public string UpdateChannel => configs.Current.LauncherUpdateChannel is { } channel
-        && ForkReleaseFeed.ChannelRank(channel) >= 0 ? channel : _fork?.Channel ?? "stable";
+        && IsSupportedChannel(channel) ? channel : _fork?.Channel ?? "stable";
+
+    public bool UsesOfficialDownloadPage => IsForkBuild && UpdateChannel == OfficialDownloadChannel;
 
     public bool TrySetUpdateChannel(string channel) =>
-        IsForkBuild && ForkReleaseFeed.ChannelRank(channel) >= 0 && configs.TrySetLauncherUpdateChannel(channel);
+        IsForkBuild && IsSupportedChannel(channel)
+        && configs.TrySetLauncherUpdateChannel(channel, disableAutoUpdate: channel == OfficialDownloadChannel);
+
+    private static bool IsSupportedChannel(string channel) =>
+        channel == OfficialDownloadChannel || ForkReleaseFeed.ChannelRank(channel) >= 0;
 
     internal Version CurrentVersion => _fork?.CurrentVersion
         ?? Version.Parse(typeof(UpdateService).Assembly.GetName().Version?.ToString(3) ?? "0.0.0");
@@ -62,7 +72,8 @@ public sealed class UpdateService(
 
     public string ManualDownloadUrl => DownloadUrl();
 
-    public string BrowserDownloadUrl => IsForkBuild ? ForkReleaseFeed.DownloadPage : DefaultDownloadUrl;
+    public string BrowserDownloadUrl => IsForkBuild && !UsesOfficialDownloadPage
+        ? ForkReleaseFeed.DownloadPage : DefaultDownloadUrl;
 
     internal async Task<LauncherReleaseAsset> GetInstallerAsync(string version, CancellationToken cancellationToken)
     {
@@ -150,6 +161,11 @@ public sealed class UpdateService(
 
     public async Task<UpdateStatus> CheckAsync(bool force = false)
     {
+        if (UsesOfficialDownloadPage)
+        {
+            return new UpdateStatus(UpdateKind.ManualDownload, DownloadUrl: DefaultDownloadUrl);
+        }
+
         var fork = Environment.GetEnvironmentVariable("VRCL_VERSION_URL") is { Length: > 0 } ? null : _fork;
         var channel = UpdateChannel;
         var source = fork is null ? VersionUrl() : $"fork:{fork.CurrentText}:{fork.Commit}:{channel}";
