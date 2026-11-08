@@ -612,6 +612,7 @@
   "Settings.Version": "当前版本",
   "Settings.CheckUpdate": "检查更新",
   "Settings.Update.UpToDate": "已是最新版",
+  "Settings.Update.ForkDownload": "打开下载页",
   "Settings.Update.Available": "下载新版 v{0}",
   "Settings.Update.Failed": "检查失败",
   "Settings.DataDirectory": "数据目录",

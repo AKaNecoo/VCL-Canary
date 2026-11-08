@@ -32,18 +32,30 @@ public sealed class UpdateService(HttpClient http, UpdateStateStore states, ILog
             ["X-GitHub-Api-Version"] = "2026-03-10",
         };
 
-    public string CurrentVersionText =>
+    private readonly ForkReleaseFeed? _fork = ForkReleaseFeed.ForCurrentBuild();
+
+    public bool IsForkBuild => _fork is not null;
+
+    public string ManualDownloadUrl => DownloadUrl();
+
+    public string CurrentVersionText => _fork?.CurrentText ??
         typeof(UpdateService).Assembly.GetName().Version?.ToString(3) ?? "0.0.0";
 
     public async Task<UpdateStatus> CheckAsync(bool force = false)
     {
+        var fork = Environment.GetEnvironmentVariable("VRCL_VERSION_URL") is { Length: > 0 } ? null : _fork;
+        var source = fork?.Channel ?? VersionUrl();
         var state = states.Load();
+        if (state.Source != source)
+        {
+            state = new UpdateState { Source = source };
+        }
 
         if (!force && DateTimeOffset.UtcNow - state.CheckedAt < CheckInterval)
         {
             if (state.Tag.Length > 0)
             {
-                return Evaluate(state.Tag);
+                return Evaluate(state.Tag, fork);
             }
 
             logger.LogInformation("上次检查失败，本次启动不再重试");
@@ -51,8 +63,9 @@ public sealed class UpdateService(HttpClient http, UpdateStateStore states, ILog
             return new UpdateStatus(UpdateKind.Failed);
         }
 
-        var remote = await RemoteTextFile.GetAsync(
-            http, VersionUrl(), CancellationToken.None, HeadersFor(state.ETag));
+        var remote = fork is null
+            ? await RemoteTextFile.GetAsync(http, VersionUrl(), CancellationToken.None, HeadersFor(state.ETag))
+            : await fork.FetchAsync(http, HeadersFor(fork.IsPreview ? "" : state.ETag), CancellationToken.None);
 
         if (remote.Outcome == RemoteTextOutcome.NotModified && state.Tag.Length > 0)
         {
@@ -60,7 +73,7 @@ public sealed class UpdateService(HttpClient http, UpdateStateStore states, ILog
             state.ETag = remote.ETag ?? state.ETag;
             states.Save(state);
 
-            return Evaluate(state.Tag);
+            return Evaluate(state.Tag, fork);
         }
 
         if (remote.Outcome != RemoteTextOutcome.Fetched)
@@ -68,7 +81,7 @@ public sealed class UpdateService(HttpClient http, UpdateStateStore states, ILog
             return Fail(state, $"获取最新版本号失败：{remote.Detail}");
         }
 
-        if (ReadTag(remote.Text) is not { } text)
+        if ((fork is null ? ReadTag(remote.Text) : remote.Text) is not { } text)
         {
             return Fail(state, "版本接口返回的内容无法解析");
         }
@@ -78,7 +91,7 @@ public sealed class UpdateService(HttpClient http, UpdateStateStore states, ILog
         state.CheckedAt = DateTimeOffset.UtcNow;
         states.Save(state);
 
-        return Evaluate(text);
+        return Evaluate(text, fork);
     }
 
     private UpdateStatus Fail(UpdateState state, string message)
@@ -91,22 +104,24 @@ public sealed class UpdateService(HttpClient http, UpdateStateStore states, ILog
         return new UpdateStatus(UpdateKind.Failed);
     }
 
-    private UpdateStatus Evaluate(string tag)
+    private UpdateStatus Evaluate(string tag, ForkReleaseFeed? fork)
     {
-        if (ParseVersion(tag) is not { } latest)
+        if ((fork is null ? ParseVersion(tag) : fork.ParseVersion(tag)) is not { } latest)
         {
             logger.LogWarning("版本号格式不对：{Text}", tag);
 
             return new UpdateStatus(UpdateKind.Failed);
         }
 
-        var current = Version.TryParse(CurrentVersionText, out var local) ? local : new Version(0, 0);
+        var current = fork?.ParseVersion(fork.CurrentText)
+            ?? typeof(UpdateService).Assembly.GetName().Version
+            ?? new Version(0, 0, 0);
 
         if (latest > current)
         {
             logger.LogInformation("发现新版本：{Latest}，当前 {Current}", latest, current);
 
-            return new UpdateStatus(UpdateKind.UpdateAvailable, latest.ToString(), DownloadUrl());
+            return new UpdateStatus(UpdateKind.UpdateAvailable, tag, DownloadUrl());
         }
 
         logger.LogInformation("已是最新版本：{Current}", current);
@@ -155,10 +170,10 @@ public sealed class UpdateService(HttpClient http, UpdateStateStore states, ILog
             ? custom
             : DefaultReleaseApiUrl;
 
-    private static string DownloadUrl() =>
+    private string DownloadUrl() =>
         Environment.GetEnvironmentVariable("VRCL_DOWNLOAD_URL") is { Length: > 0 } custom
             ? custom
-            : DefaultDownloadUrl;
+            : _fork is null ? DefaultDownloadUrl : ForkReleaseFeed.DownloadPage;
 
     private sealed class GitHubRelease
     {

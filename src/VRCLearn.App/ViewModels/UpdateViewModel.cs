@@ -4,6 +4,7 @@ using CommunityToolkit.Mvvm.Input;
 using Microsoft.Extensions.Logging;
 using VRCLearn.App.Services;
 using VRCLearn.Infrastructure.Shell;
+using VRCLearn.Infrastructure.Storage;
 using VRCLearn.Infrastructure.Updates;
 
 namespace VRCLearn.App.ViewModels;
@@ -24,6 +25,7 @@ public sealed partial class UpdateViewModel : ObservableObject
     private static readonly TimeSpan NoticeDuration = TimeSpan.FromSeconds(5);
 
     private readonly UpdateService _service;
+    private readonly GuiConfigStore _configs;
     private readonly LocalizationService _localization;
     private readonly ILogger<UpdateViewModel> _logger;
 
@@ -34,10 +36,12 @@ public sealed partial class UpdateViewModel : ObservableObject
 
     public UpdateViewModel(
         UpdateService service,
+        GuiConfigStore configs,
         LocalizationService localization,
         ILogger<UpdateViewModel> logger)
     {
         _service = service;
+        _configs = configs;
         _localization = localization;
         _logger = logger;
 
@@ -50,6 +54,7 @@ public sealed partial class UpdateViewModel : ObservableObject
         });
 
         _localization.PropertyChanged += (_, _) => NotifyTexts();
+        _configs.Changed += (_, _) => NotifyTexts();
     }
 
     public string CurrentVersionText => _service.CurrentVersionText;
@@ -60,9 +65,16 @@ public sealed partial class UpdateViewModel : ObservableObject
     [ObservableProperty]
     private string? _version;
 
-    public bool HasNotice => Phase is UpdatePhase.Available;
+    public bool HasNotice => !UseForkDownloadPage && Phase is UpdatePhase.Available;
 
-    public string ButtonText => Phase switch
+    private bool UseForkDownloadPage =>
+        _service.IsForkBuild
+        && (_localization.CurrentLanguage.Equals("zh", StringComparison.OrdinalIgnoreCase)
+            || _localization.CurrentLanguage.StartsWith("zh-", StringComparison.OrdinalIgnoreCase))
+        && (!_configs.Current.ProxyEnabled
+            || !Uri.TryCreate(_configs.Current.ProxyUrl.Trim(), UriKind.Absolute, out _));
+
+    public string ButtonText => UseForkDownloadPage ? _localization["Settings.Update.ForkDownload"] : Phase switch
     {
         UpdatePhase.UpToDate => _localization["Settings.Update.UpToDate"],
         UpdatePhase.Available => _localization.Format("Settings.Update.Available", Version ?? ""),
@@ -85,23 +97,31 @@ public sealed partial class UpdateViewModel : ObservableObject
         OnPropertyChanged(nameof(CurrentVersionText));
     }
 
-    public Task InitializeAsync() => CheckAsync(force: false);
+    public Task InitializeAsync() => UseForkDownloadPage ? Task.CompletedTask : CheckAsync(force: false);
 
     private bool CanAct() => !_running;
 
     [RelayCommand(CanExecute = nameof(CanAct))]
-    private Task Act() => Phase == UpdatePhase.Available ? OpenDownload() : CheckAsync(force: true);
-
-    private Task OpenDownload()
+    private Task Act()
     {
-        if (string.IsNullOrWhiteSpace(_downloadUrl))
+        if (UseForkDownloadPage)
+        {
+            return OpenDownload(_service.ManualDownloadUrl);
+        }
+
+        return Phase == UpdatePhase.Available ? OpenDownload(_downloadUrl) : CheckAsync(force: true);
+    }
+
+    private Task OpenDownload(string? url)
+    {
+        if (string.IsNullOrWhiteSpace(url))
         {
             return Task.CompletedTask;
         }
 
         try
         {
-            ShellLauncher.OpenUrl(_downloadUrl);
+            ShellLauncher.OpenUrl(url);
         }
         catch (Exception exception) when (exception is Win32Exception or InvalidOperationException)
         {
