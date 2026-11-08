@@ -524,7 +524,7 @@
                         <HeaderedContentControl.Header>
                             <StackPanel>
                                 <TextBlock Text="{markup:Tr Settings.SoftwareName}" />
-                                <TextBlock Style="{StaticResource Caption}" Text="VRCLearn Launcher（VCL）" />
+                                <TextBlock Style="{StaticResource Caption}" Text="VCL Canary" />
                             </StackPanel>
                         </HeaderedContentControl.Header>
                         <StackPanel Orientation="Horizontal">
@@ -604,6 +604,31 @@
                                 Content="{markup:Tr Settings.Update.CancelDownload}"
                                 Visibility="{Binding Update.IsDownloading, Converter={StaticResource BooleanToVisibilityConverter}}" />
                         </StackPanel>
+                    </HeaderedContentControl>
+
+                    <HeaderedContentControl
+                        Style="{StaticResource FieldRow}"
+                        Visibility="{Binding Update.HasUpdateChannels, Converter={StaticResource BooleanToVisibilityConverter}}">
+                        <HeaderedContentControl.Header>
+                            <StackPanel>
+                                <TextBlock Text="{markup:Tr Settings.Update.Channel}" />
+                                <TextBlock
+                                    MaxWidth="360"
+                                    Margin="{StaticResource Gap.Tight}"
+                                    HorizontalAlignment="Left"
+                                    Style="{StaticResource Caption}"
+                                    Text="{markup:Tr Settings.Update.ChannelHint}"
+                                    TextWrapping="Wrap" />
+                            </StackPanel>
+                        </HeaderedContentControl.Header>
+                        <ComboBox
+                            MinWidth="120"
+                            AutomationProperties.Name="{markup:Tr Settings.Update.Channel}"
+                            DisplayMemberPath="Display"
+                            IsEnabled="{Binding Update.CanSelectUpdateChannel}"
+                            ItemsSource="{Binding Update.UpdateChannels}"
+                            SelectedValue="{Binding Update.SelectedUpdateChannel, Mode=TwoWay}"
+                            SelectedValuePath="Value" />
                     </HeaderedContentControl>
 
                     <HeaderedContentControl Style="{StaticResource FieldRow}">

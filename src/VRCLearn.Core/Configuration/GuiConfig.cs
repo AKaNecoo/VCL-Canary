@@ -14,11 +14,11 @@ public sealed class GuiConfig : IJsonOnDeserialized
 
     public bool AnimationEnabled { get; set; } = true;
 
-    public bool SidebarLocked { get; set; }
-
     public bool ExperimentalFeatures { get; set; }
 
     public bool LauncherAutoUpdate { get; set; }
+
+    public string? LauncherUpdateChannel { get; set; }
 
     public bool ProxyEnabled { get; set; }
 

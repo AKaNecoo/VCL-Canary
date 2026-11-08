@@ -67,7 +67,7 @@ dotnet run --project src/VRCLearn.App/VRCLearn.App.csproj
 
 发布目标为 `net10.0-windows` / `win-x64`，自包含。
 
-GitHub Actions 在推送到 `dev` 或 `beta` 时分别发布 Alpha 或 Beta。正式版从受保护的 `main` 手动发布。Canary 在发布版本的第三段编码上游补丁号与两位构建号，例如以 `1.34.1` 为基线的第 `01` 个构建为 `1.34.101`。
+GitHub Actions 在推送到 `dev` 或 `beta` 时分别发布 Alpha 或 Beta。正式版从受保护的 `main` 手动发布。Canary 沿用上游版本的前两段，并为每个构建系列分配一段连续编号。例如 `1.35` 系列从 `1.35.101` 开始，第 `02` 个构建为 `1.35.102`。
 
 ## 项目结构
 

@@ -1,4 +1,5 @@
-﻿#define MyAppName "VRCLearn Launcher"
+﻿#define MyAppName "VCL Canary"
+#define MyLauncherWindowName "VRCLearn Launcher"
 #define MyAppExeName "VRCLearnLauncher.exe"
 #define MyAppMutex "VRCLearnLauncher.SingleInstance"
 
@@ -14,10 +15,11 @@ AppId={{C3B4BABC-4F9B-4281-A58B-02AA08BC61B7}
 AppName={#MyAppName}
 AppVersion={#MyAppVersion}
 AppVerName={#MyAppName} {#MyAppVersion}
-AppPublisherURL=https://start.gamemode1.com/pages/vrclearnlauncher/
-AppSupportURL=https://start.gamemode1.com/pages/vrclearnlauncher/
+AppPublisher=AKaNecoo
+AppPublisherURL=https://github.com/AKaNecoo/VCL-Canary
+AppSupportURL=https://github.com/AKaNecoo/VCL-Canary/issues/
 DefaultDirName={localappdata}\Programs\VRCLearnLauncher
-DefaultGroupName={#MyAppName}
+DefaultGroupName={#MyLauncherWindowName}
 DisableProgramGroupPage=yes
 PrivilegesRequired=lowest
 OutputDir=..\artifacts\releases
@@ -40,12 +42,12 @@ Name: "english"; MessagesFile: "compiler:Default.isl"
 
 [CustomMessages]
 english.CloseLauncher=VRCLearn Launcher is running. Close it before continuing.
-chinesesimplified.CloseLauncher=VRCLearn Launcher 正在运行，请先关闭启动器再继续。
+chinesesimplified.CloseLauncher=VRCLearn Launcher 正在运行，请先关闭后再继续。
 
-english.ConfirmCloseLauncher=VRCLearn Launcher is running. Close it and continue installing?
-chinesesimplified.ConfirmCloseLauncher=VRCLearn Launcher 正在运行。要关闭启动器并继续安装吗？
-english.CloseLauncherFailed=The launcher did not close. Close it manually before continuing.
-chinesesimplified.CloseLauncherFailed=未能自动关闭启动器，请手动关闭后再继续安装。
+english.ConfirmCloseLauncher=VRCLearn Launcher is running. Close it and continue?
+chinesesimplified.ConfirmCloseLauncher=VRCLearn Launcher 正在运行。关闭后继续吗？
+english.CloseLauncherFailed=VRCLearn Launcher did not close. Close it manually before continuing.
+chinesesimplified.CloseLauncherFailed=未能自动关闭 VRCLearn Launcher，请手动关闭后再继续。
 
 [Tasks]
 Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm:AdditionalIcons}"
@@ -60,8 +62,8 @@ Source: "..\artifacts\publish\*"; DestDir: "{app}"; Flags: ignoreversion recurse
 Type: filesandordirs; Name: "{app}\Plugins"
 
 [Icons]
-Name: "{group}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"
-Name: "{autodesktop}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; Tasks: desktopicon
+Name: "{group}\{#MyLauncherWindowName}"; Filename: "{app}\{#MyAppExeName}"
+Name: "{autodesktop}\{#MyLauncherWindowName}"; Filename: "{app}\{#MyAppExeName}"; Tasks: desktopicon
 
 [Run]
 Filename: "{app}\{#MyAppExeName}"; Description: "{cm:LaunchProgram,{#MyAppName}}"; Flags: nowait postinstall skipifsilent
@@ -75,15 +77,30 @@ const
   LauncherExitTimeoutMs = 5000;
 
 function GetWindowProcessId(Window: HWND; var ProcessId: DWORD): DWORD;
-  external 'GetWindowThreadProcessId@user32.dll stdcall setuponly';
+  external 'GetWindowThreadProcessId@user32.dll stdcall';
 function OpenLauncherProcess(Access: DWORD; InheritHandle: BOOL; ProcessId: DWORD): THandle;
-  external 'OpenProcess@kernel32.dll stdcall setuponly';
+  external 'OpenProcess@kernel32.dll stdcall';
 function ReadProcessImagePath(Process: THandle; Flags: DWORD; ImagePath: String; var PathLength: DWORD): BOOL;
-  external 'QueryFullProcessImageNameW@kernel32.dll stdcall setuponly';
+  external 'QueryFullProcessImageNameW@kernel32.dll stdcall';
 function WaitForLauncherExit(Process: THandle; Timeout: DWORD): DWORD;
-  external 'WaitForSingleObject@kernel32.dll stdcall setuponly';
+  external 'WaitForSingleObject@kernel32.dll stdcall';
 function CloseProcessHandle(Process: THandle): BOOL;
-  external 'CloseHandle@kernel32.dll stdcall setuponly';
+  external 'CloseHandle@kernel32.dll stdcall';
+function LongPathName(Path: String; LongPath: String; BufferLength: DWORD): DWORD;
+  external 'GetLongPathNameW@kernel32.dll stdcall';
+
+function QueryLongPath(Path: String): String;
+var
+  Size: DWORD;
+begin
+  Size := 32768;
+  SetLength(Result, Size);
+  Size := LongPathName(Path, Result, Size);
+  if Size = 0 then
+    Result := Path
+  else
+    SetLength(Result, Size);
+end;
 
 function RequestLauncherClose(): Boolean;
 var
@@ -92,8 +109,11 @@ var
   Process: THandle;
   ImagePath: String;
 begin
-  Result := False;
-  Window := FindWindowByWindowName('{#MyAppName}');
+  Result := not CheckForMutexes('{#MyAppMutex}');
+  if Result then
+    Exit;
+
+  Window := FindWindowByWindowName('{#MyLauncherWindowName}');
   if (Window = 0) or (GetWindowProcessId(Window, ProcessId) = 0) then
     Exit;
 
@@ -109,7 +129,7 @@ begin
     SetLength(ImagePath, PathLength);
 
     { Verify the window belongs to the executable this installer will replace. }
-    if CompareText(ImagePath, ExpandConstant('{app}\{#MyAppExeName}')) <> 0 then
+    if CompareText(QueryLongPath(ImagePath), QueryLongPath(ExpandConstant('{app}\{#MyAppExeName}'))) <> 0 then
       Exit;
     if (GetWindowProcessId(Window, CurrentProcessId) = 0) or (CurrentProcessId <> ProcessId) then
       Exit;
@@ -131,30 +151,13 @@ begin
   if SuppressibleMsgBox(CustomMessage('ConfirmCloseLauncher'), mbConfirmation, MB_OKCANCEL, IDCANCEL) <> IDOK then
     Exit;
 
-  if not CheckForMutexes('{#MyAppMutex}') then
-    Result := True
-  else
-    Result := RequestLauncherClose() and not CheckForMutexes('{#MyAppMutex}');
+  Result := RequestLauncherClose() or (not CheckForMutexes('{#MyAppMutex}'));
 
   if not Result then
   begin
     Log('VRCLearn Launcher could not be closed automatically.');
     SuppressibleMsgBox(CustomMessage('CloseLauncherFailed'), mbError, MB_OK, IDOK);
   end;
-end;
-
-function WaitForLauncherToClose(Silent: Boolean): Boolean;
-begin
-  Result := False;
-  while CheckForMutexes('{#MyAppMutex}') do
-  begin
-    Log('VRCLearn Launcher is still running.');
-    if Silent then
-      Exit;
-    if SuppressibleMsgBox(CustomMessage('CloseLauncher'), mbInformation, MB_OKCANCEL, IDCANCEL) <> IDOK then
-      Exit;
-  end;
-  Result := True;
 end;
 
 function NextButtonClick(CurPageID: Integer): Boolean;
@@ -167,11 +170,17 @@ end;
 function PrepareToInstall(var NeedsRestart: Boolean): String;
 begin
   Result := '';
-  if not WaitForLauncherToClose(True) then
+  if CheckForMutexes('{#MyAppMutex}') then
+  begin
+    Log('VRCLearn Launcher is still running.');
     Result := CustomMessage('CloseLauncher');
+  end;
 end;
 
 function InitializeUninstall(): Boolean;
 begin
-  Result := WaitForLauncherToClose(UninstallSilent);
+  if UninstallSilent then
+    Result := not CheckForMutexes('{#MyAppMutex}')
+  else
+    Result := ConfirmLauncherClose();
 end;

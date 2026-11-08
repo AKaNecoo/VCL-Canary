@@ -1,4 +1,4 @@
-name: Fork Installer Release
+name: VCL Canary Installer Release
 
 on:
   push:
@@ -11,7 +11,7 @@ permissions:
 jobs:
   build:
     if: >-
-      github.repository == 'AKaNecoo/VRCLearn_Launcher'
+      github.repository_id == '1449236598'
       && github.ref_type == 'branch'
       && contains(fromJSON('["main", "beta", "dev"]'), github.ref_name)
       && (github.ref_name != 'main' || github.event_name == 'workflow_dispatch')
@@ -20,6 +20,7 @@ jobs:
     outputs:
       channel: ${{ steps.version.outputs.channel }}
       version: ${{ steps.version.outputs.version }}
+      display_version: ${{ steps.version.outputs.display_version }}
       tag: ${{ steps.version.outputs.tag }}
       asset: ${{ steps.version.outputs.asset }}
 
@@ -50,15 +51,39 @@ jobs:
             default { throw "Unsupported release branch '$env:GITHUB_REF_NAME'." }
           }
 
-          $version = if ($channel -eq 'stable') {
-            "$base+build.$env:GITHUB_RUN_NUMBER"
-          } else {
-            "$base-$channel.$env:GITHUB_RUN_NUMBER"
+          $series = Get-Content -LiteralPath '.github/canary-build-series.json' -Raw | ConvertFrom-Json
+          $runNumber = [int]$env:GITHUB_RUN_NUMBER
+          $build = $runNumber - [int]$series.firstRun + 1
+          if ($series.upstreamVersion -ne $base -or $series.firstRun -le 0 -or $build -lt 1 -or $build -gt 99) {
+            throw "Set the Canary build series for upstream $base before release (run $runNumber, build $build)."
+          }
+
+          $firstPatch = [int]$series.firstPatch
+          if ($firstPatch -lt 101 -or ($firstPatch % 100) -ne 1) {
+            throw 'The Canary patch range must start at 101, 201, 301, and so on.'
+          }
+
+          $upstream = [version]$base
+          $patch = $firstPatch + $build - 1
+          if ($patch -gt 65534 -or $runNumber -gt 65534) {
+            throw 'The Canary version exceeds the Windows assembly version range.'
+          }
+          $canary = "$($upstream.Major).$($upstream.Minor).$patch"
+          $version = switch ($channel) {
+            'stable' { "$canary+build.$build" }
+            default { "$canary-$channel.$build" }
+          }
+          $display = switch ($channel) {
+            'alpha' { "$canary Alpha" }
+            'beta' { "$canary Beta" }
+            default { $canary }
           }
           $asset = "VRCLearnLauncher-$($version.Replace('+', '-'))-win-x64-Setup.exe"
 
-          "channel=$channel", "version=$version", "tag=fork-v$version", "asset=$asset" >> $env:GITHUB_OUTPUT
-          "BASE_VERSION=$base", "RELEASE_VERSION=$version", "RELEASE_TAG=fork-v$version", "SETUP_ASSET=$asset" >> $env:GITHUB_ENV
+          "channel=$channel", "version=$version", "display_version=$display", "tag=fork-v$version", "asset=$asset" >> $env:GITHUB_OUTPUT
+          "BASE_VERSION=$base", "RELEASE_VERSION=$version", "DISPLAY_VERSION=$display", "RELEASE_TAG=fork-v$version",
+            "CANARY_BUILD=$($build.ToString('D2'))", "CANARY_ASSEMBLY_VERSION=$canary.$build",
+            "UPSTREAM_ASSEMBLY_VERSION=$base.$runNumber", "SETUP_ASSET=$asset" >> $env:GITHUB_ENV
 
       - name: Prepare release notes
         shell: pwsh
@@ -86,7 +111,8 @@ jobs:
           }
 
           $run = "$env:GITHUB_SERVER_URL/$env:GITHUB_REPOSITORY/actions/runs/$env:GITHUB_RUN_ID"
-          $output = @($notes, '', "源代码提交为 $env:GITHUB_SHA。[构建记录]($run)") -join [char]10
+          $output = @($notes, '', "基于上游 $env:BASE_VERSION，Canary 构建 $env:CANARY_BUILD。", '',
+            "源代码提交为 $env:GITHUB_SHA。[构建记录]($run)") -join [char]10
           New-Item -ItemType Directory -Path 'artifacts/releases' -Force | Out-Null
           [IO.File]::WriteAllText('artifacts/releases/release-notes.md', $output + [char]10)
 
@@ -97,8 +123,9 @@ jobs:
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
           dotnet publish src/VRCLearn.App/VRCLearn.App.csproj -c Release -r win-x64 --no-restore `
-            --self-contained true "-p:Version=$env:RELEASE_VERSION" -p:VclForkBuild=true `
-            "-p:AssemblyVersion=$env:BASE_VERSION.$env:GITHUB_RUN_NUMBER" `
+            --self-contained true "-p:Version=$env:RELEASE_VERSION" -p:VclForkBuild=true "-p:VclForkCommit=$env:GITHUB_SHA" `
+            "-p:VclCanaryAssemblyVersion=$env:CANARY_ASSEMBLY_VERSION" "-p:VclCanaryUpstreamAssemblyVersion=$env:UPSTREAM_ASSEMBLY_VERSION" `
+            "-p:VclCanaryDisplayVersion=$env:DISPLAY_VERSION" `
             -p:DebugType=none -p:DebugSymbols=false -o artifacts/publish
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
@@ -114,6 +141,17 @@ jobs:
 
           Copy-Item -LiteralPath 'artifacts/update-helper/VRCLearn.UpdateHelper.exe' -Destination 'artifacts/publish'
 
+      - name: Verify licenses are included
+        shell: pwsh
+        run: |
+          foreach ($name in @('LICENSE', 'THIRD-PARTY-NOTICES.txt')) {
+            $source = (Get-FileHash -LiteralPath $name).Hash
+            $published = (Get-FileHash -LiteralPath "artifacts/publish/$name").Hash
+            if (!$published -or $published -ne $source) {
+              throw "Published license file '$name' is missing or different."
+            }
+          }
+
       - name: Build installer and checksum
         shell: pwsh
         run: |
@@ -125,7 +163,7 @@ jobs:
             $iscc = "$env:ProgramFiles\Inno Setup 6\ISCC.exe"
           }
           $name = [IO.Path]::GetFileNameWithoutExtension($env:SETUP_ASSET)
-          & $iscc "/DMyAppVersion=$env:RELEASE_VERSION" "/DMyAppFileVersion=$env:BASE_VERSION.0" `
+          & $iscc "/DMyAppVersion=$env:RELEASE_VERSION" "/DMyAppFileVersion=$env:CANARY_ASSEMBLY_VERSION" `
             "/F$name" build/installer.iss
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
@@ -153,6 +191,7 @@ jobs:
       GH_REPO: ${{ github.repository }}
       RELEASE_CHANNEL: ${{ needs.build.outputs.channel }}
       RELEASE_VERSION: ${{ needs.build.outputs.version }}
+      DISPLAY_VERSION: ${{ needs.build.outputs.display_version }}
       RELEASE_TAG: ${{ needs.build.outputs.tag }}
       SETUP_ASSET: ${{ needs.build.outputs.asset }}
 
@@ -194,7 +233,7 @@ jobs:
           if ($LASTEXITCODE -ne 0) {
             $flags = @()
             if ($preview) { $flags += '--prerelease' }
-            $title = "VRCLearn Launcher $env:RELEASE_VERSION"
+            $title = "VCL Canary $env:DISPLAY_VERSION"
             gh release create $tag $asset $checksum --draft --verify-tag --latest=false `
               --title $title --notes-file release-notes.md @flags
             if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }

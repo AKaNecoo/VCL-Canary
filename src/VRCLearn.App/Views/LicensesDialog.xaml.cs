@@ -7,6 +7,7 @@ public partial class LicensesDialog : DialogWindowBase
 {
     private static readonly (string Name, string Marker)[] SectionMarkers =
     [
+        ("VRCLearn Launcher (MIT)", "MIT License"),
         ("WPF-UI", "1. WPF-UI 4.3.0"),
         ("CommunityToolkit.Mvvm", "2. CommunityToolkit.Mvvm 8.4.2"),
         ("Microsoft.Extensions", "3. Microsoft.Extensions."),
