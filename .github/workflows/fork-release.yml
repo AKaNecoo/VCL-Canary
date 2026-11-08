@@ -61,9 +61,22 @@ jobs:
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
           dotnet publish src/VRCLearn.App/VRCLearn.App.csproj -c Release -r win-x64 --no-restore `
-            --self-contained true "-p:Version=$env:RELEASE_VERSION" `
+            --self-contained true "-p:Version=$env:RELEASE_VERSION" -p:VclForkBuild=true `
+            "-p:AssemblyVersion=$env:BASE_VERSION.$env:GITHUB_RUN_NUMBER" `
             -p:DebugType=none -p:DebugSymbols=false -o artifacts/publish
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Publish update helper when present
+        if: hashFiles('src/VRCLearn.UpdateHelper/VRCLearn.UpdateHelper.csproj') != ''
+        shell: pwsh
+        run: |
+          $project = 'src/VRCLearn.UpdateHelper/VRCLearn.UpdateHelper.csproj'
+          dotnet publish $project -c Release -r win-x64 --self-contained true `
+            -p:PublishSingleFile=true -p:PublishTrimmed=true -p:DebugType=none `
+            --source https://api.nuget.org/v3/index.json -o artifacts/update-helper
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+          Copy-Item -LiteralPath 'artifacts/update-helper/VRCLearn.UpdateHelper.exe' -Destination 'artifacts/publish'
 
       - name: Build installer and checksum
         shell: pwsh

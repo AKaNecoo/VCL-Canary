@@ -6,6 +6,7 @@ namespace VRCLearn.Infrastructure.Updates;
 
 public sealed class UpdateState
 {
+    public string Source { get; set; } = "";
     public string Tag { get; set; } = "";
 
     public string ETag { get; set; } = "";

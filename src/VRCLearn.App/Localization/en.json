@@ -615,6 +615,7 @@
   "Settings.Version": "Current version",
   "Settings.CheckUpdate": "Check for updates",
   "Settings.Update.UpToDate": "Up to date",
+  "Settings.Update.ForkDownload": "Open download page",
   "Settings.Update.Available": "Download v{0}",
   "Settings.Update.Failed": "Check failed",
   "Settings.DataDirectory": "Data folder",

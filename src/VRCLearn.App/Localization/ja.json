@@ -615,6 +615,7 @@
   "Settings.Version": "現在のバージョン",
   "Settings.CheckUpdate": "アップデートを確認",
   "Settings.Update.UpToDate": "最新バージョンです",
+  "Settings.Update.ForkDownload": "ダウンロードページを開く",
   "Settings.Update.Available": "新しいバージョン v{0} をダウンロード",
   "Settings.Update.Failed": "確認に失敗しました",
   "Settings.DataDirectory": "データフォルダー",
