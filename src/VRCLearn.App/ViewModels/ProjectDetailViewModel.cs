@@ -1,4 +1,4 @@
-﻿using System.Collections.ObjectModel;
+using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.IO;
 using System.Windows.Data;
@@ -936,7 +936,7 @@ public sealed partial class ProjectDetailViewModel(
 
     private async Task<bool> RemovePackagesAsync(IReadOnlyList<string> names)
     {
-        if (_project is null || IsBusy)
+        if (_project is not { } project || IsBusy)
         {
             return false;
         }
@@ -949,7 +949,11 @@ public sealed partial class ProjectDetailViewModel(
 
         Status = null;
 
-        var outcome = await PackageOperations.RemoveAsync(_project, names, CancellationToken.None);
+        var outcome = await PackageOperations.RemoveAsync(project, names, CancellationToken.None);
+        if (IsBusy || !ReferenceEquals(_project, project) || HasPendingChanges)
+        {
+            return false;
+        }
 
         if (outcome.Status != RemovePackageStatus.Success)
         {
@@ -1021,6 +1025,105 @@ public sealed partial class ProjectDetailViewModel(
         return true;
     }
 
+    public async Task<bool> PrepareStableUpgradesAsync()
+    {
+        if (_project is not { } current || IsBusy || _switchingVersion
+            || _pending is not null || _requestedAdds.Count > 0)
+        {
+            return false;
+        }
+
+        var generation = _loadGeneration;
+        var path = ProjectPath;
+        IsBusy = true;
+        Status = null;
+
+        try
+        {
+            // Plan against fresh package manifests. Apply rechecks this fingerprint before writing.
+            var fingerprint = await FingerprintAsync(current);
+            var project = await projects.OpenAsync(path, CancellationToken.None);
+            if (generation != _loadGeneration)
+            {
+                return false;
+            }
+
+            var catalog = Catalog();
+            var upgrades = new List<PackageInfo>();
+
+            foreach (var (name, installed) in project.InstalledPackages)
+            {
+                var version = project.GetLocked(name) is { } locked && locked.Version > installed.Version
+                    ? locked.Version
+                    : installed.Version;
+
+                if (catalog.NewerThan(name, version, project.UnityVersion, allowPrerelease: false) is { } upgrade)
+                {
+                    upgrades.Add(upgrade);
+                }
+            }
+
+            if (upgrades.Count == 0)
+            {
+                Status = localization["ProjectDetail.Batch.UpToDate"];
+                return false;
+            }
+
+            var outcome = await PackageOperations.AddAsync(
+                project, catalog, upgrades, AddPackageOperation.UpgradeLocked,
+                allowPrerelease: false, CancellationToken.None);
+
+            if (generation != _loadGeneration)
+            {
+                return false;
+            }
+
+            if (outcome.Changes is not { } changes)
+            {
+                logger.LogWarning("批量升级包失败：{Project} {Missing}", path,
+                    ReportMissingDependencies(outcome.MissingDependencies));
+                return false;
+            }
+
+            // Dependencies can explicitly require prereleases or versions older than those already installed.
+            var blocked = changes.PackageChanges.Values.OfType<Install>()
+                .Select(change => change.Package)
+                .OfType<PackageInfo>()
+                .Where(package => !package.Version.IsStable
+                    || project.GetInstalledPackage(package.Name)?.Version > package.Version
+                    || project.GetLocked(package.Name)?.Version > package.Version)
+                .Select(package => package.Name)
+                .ToList();
+
+            if (blocked.Count > 0)
+            {
+                Status = localization.Format("ProjectDetail.Batch.UpgradeBlocked", Join(blocked));
+                return false;
+            }
+
+            _project = project;
+            await SetPendingAsync(changes, fingerprint: fingerprint);
+            return true;
+        }
+        catch (Exception exception) when (exception is not OperationCanceledException)
+        {
+            if (generation == _loadGeneration)
+            {
+                logger.LogWarning(exception, "批量升级包失败：{Project}", path);
+                Status = localization.Format("ProjectDetail.Batch.UpgradeFailed", exception.Message);
+            }
+
+            return false;
+        }
+        finally
+        {
+            if (generation == _loadGeneration)
+            {
+                IsBusy = false;
+            }
+        }
+    }
+
     public bool HasSelectedInstalled => Installed.Any(x => x.IsSelected && x.CanRemove);
 
     [RelayCommand(CanExecute = nameof(HasSelectedInstalled))]
@@ -1077,14 +1180,18 @@ public sealed partial class ProjectDetailViewModel(
 
     private async Task ReinstallPackagesAsync(IReadOnlyList<string> names)
     {
-        if (_project is null || IsBusy)
+        if (_project is not { } project || IsBusy)
         {
             return;
         }
 
         Status = null;
 
-        var outcome = await PackageOperations.ReinstallAsync(_project, Catalog(), names, CancellationToken.None);
+        var outcome = await PackageOperations.ReinstallAsync(project, Catalog(), names, CancellationToken.None);
+        if (IsBusy || !ReferenceEquals(_project, project))
+        {
+            return;
+        }
 
         if (outcome.Status != ReinstallStatus.Success)
         {
@@ -1230,18 +1337,19 @@ public sealed partial class ProjectDetailViewModel(
         Search.Run();
     }
 
-    private async Task<string> FingerprintAsync()
-    {
-        if (_project is null)
-        {
-            return "";
-        }
+    private Task<string> FingerprintAsync() =>
+        _project is { } project ? FingerprintAsync(project) : Task.FromResult("");
 
-        var bytes = await _project.Io.ReadAllBytesOrNullAsync(VpmManifest.RelativePath, CancellationToken.None);
+    private static async Task<string> FingerprintAsync(UnityProject project)
+    {
+        var bytes = await project.Io.ReadAllBytesOrNullAsync(VpmManifest.RelativePath, CancellationToken.None);
         return bytes is null ? "" : Sha256Hex.Of(bytes);
     }
 
-    private async Task SetPendingAsync(PendingProjectChanges changes, IReadOnlyCollection<string>? requestedAdds = null)
+    private async Task SetPendingAsync(
+        PendingProjectChanges changes,
+        IReadOnlyCollection<string>? requestedAdds = null,
+        string? fingerprint = null)
     {
         if (requestedAdds is null)
         {
@@ -1249,7 +1357,7 @@ public sealed partial class ProjectDetailViewModel(
         }
 
         _pending = changes;
-        _pendingFingerprint = await FingerprintAsync();
+        _pendingFingerprint = fingerprint ?? await FingerprintAsync();
 
         PendingChanges.Clear();
         PendingConflicts.Clear();
@@ -1493,7 +1601,7 @@ public sealed partial class ProjectDetailViewModel(
 
     private async Task SwitchVersionAsync(string name, string version)
     {
-        if (_project is null || _switchingVersion)
+        if (_project is null || IsBusy || _switchingVersion)
         {
             return;
         }

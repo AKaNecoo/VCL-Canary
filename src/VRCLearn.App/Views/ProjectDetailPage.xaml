@@ -144,7 +144,7 @@
         </ItemsControl.ItemsPanel>
         <ItemsControl.ItemsSource>
             <CompositeCollection>
-                <StackPanel>
+                <StackPanel x:Name="ProjectActionsSection">
                     <WrapPanel Margin="{StaticResource Gap.Field}">
                         <ui:Button
                             Margin="0,0,4,8"
@@ -384,8 +384,14 @@
                         </StackPanel>
                     </StackPanel>
 
-                    <StackPanel Visibility="{Binding HasPendingChanges, Converter={StaticResource BooleanToVisibilityConverter}}">
-                            <TextBlock Style="{StaticResource SectionTitle}" Text="{markup:Tr ProjectDetail.Review}" />
+                    <StackPanel
+                        x:Name="PendingChangesSection"
+                        Visibility="{Binding HasPendingChanges, Converter={StaticResource BooleanToVisibilityConverter}}">
+                            <TextBlock
+                                x:Name="PendingChangesTitle"
+                                Focusable="True"
+                                Style="{StaticResource SectionTitle}"
+                                Text="{markup:Tr ProjectDetail.Review}" />
 
                             <ItemsControl Margin="{StaticResource Gap.Row}" ItemsSource="{Binding PendingChanges}">
                                 <ItemsControl.ItemTemplate>
@@ -464,12 +470,32 @@
                     </Grid>
 
                     <ui:Card Margin="0,10,0,0" Padding="16,10">
-                        <StackPanel Orientation="Horizontal">
+                        <WrapPanel>
                             <TextBlock
                                 Margin="0,0,12,0"
                                 VerticalAlignment="Center"
                                 FontWeight="SemiBold"
                                 Text="{markup:Tr ProjectDetail.Batch.Title}" />
+                            <ui:Button
+                                Appearance="Secondary"
+                                Click="OnUpgradeAllClick"
+                                Content="{markup:Tr ProjectDetail.Batch.UpgradeAll}">
+                                <ui:Button.Style>
+                                    <Style BasedOn="{StaticResource RowButton}" TargetType="ui:Button">
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding IsBusy}" Value="True">
+                                                <Setter Property="IsEnabled" Value="False" />
+                                            </DataTrigger>
+                                            <DataTrigger Binding="{Binding HasPendingChanges}" Value="True">
+                                                <Setter Property="IsEnabled" Value="False" />
+                                            </DataTrigger>
+                                            <DataTrigger Binding="{Binding Installed.Count}" Value="0">
+                                                <Setter Property="IsEnabled" Value="False" />
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </ui:Button.Style>
+                            </ui:Button>
                             <ui:Button
                                 Style="{StaticResource RowButton}"
                                 Appearance="Secondary"
@@ -485,7 +511,7 @@
                                 Appearance="Secondary"
                                 Command="{Binding ClearSelectionCommand}"
                                 Content="{markup:Tr ProjectDetail.Batch.Clear}" />
-                        </StackPanel>
+                        </WrapPanel>
                     </ui:Card>
 
                     <ui:TextBox

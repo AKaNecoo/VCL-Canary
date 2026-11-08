@@ -45,14 +45,25 @@ public partial class ProjectDetailPage : UserControl
     }
 
     private void OnJumpToAvailableClick(object sender, RoutedEventArgs e) =>
-        JumpToPackageSection(AvailablePackagesSection, AvailablePackageSearchBox);
+        JumpToSection(AvailablePackagesSection, AvailablePackageSearchBox);
 
     private void OnJumpToInstalledClick(object sender, RoutedEventArgs e) =>
-        JumpToPackageSection(InstalledPackagesSection, InstalledPackageSearchBox);
+        JumpToSection(InstalledPackagesSection, InstalledPackageSearchBox);
 
-    private void JumpToPackageSection(FrameworkElement section, TextBox searchBox)
+    private async void OnUpgradeAllClick(object sender, RoutedEventArgs e)
     {
-        var index = ProjectItems.Items.IndexOf(section);
+        if (DataContext is ProjectDetailViewModel viewModel
+            && await viewModel.PrepareStableUpgradesAsync()
+            && IsVisible
+            && ReferenceEquals(DataContext, viewModel))
+        {
+            JumpToSection(PendingChangesSection, PendingChangesTitle, ProjectActionsSection);
+        }
+    }
+
+    private void JumpToSection(FrameworkElement section, FrameworkElement focusTarget, FrameworkElement? item = null)
+    {
+        var index = ProjectItems.Items.IndexOf(item ?? section);
         if (index < 0
             || VisualTree.FindDescendant<VirtualizingStackPanel>(ProjectItems) is not { ScrollOwner: { } viewer } panel)
         {
@@ -67,7 +78,7 @@ public partial class ProjectDetailPage : UserControl
             return;
         }
 
-        searchBox.Focus();
+        focusTarget.Focus();
         if (AnimationService.Current?.Enabled != false)
         {
             // Start near a distant section so the transition stays short even in large projects.
