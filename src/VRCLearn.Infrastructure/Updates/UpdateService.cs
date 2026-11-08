@@ -75,6 +75,18 @@ public sealed class UpdateService(
     public string BrowserDownloadUrl => IsForkBuild && !UsesOfficialDownloadPage
         ? ForkReleaseFeed.DownloadPage : DefaultDownloadUrl;
 
+    public string GetReleaseDownloadPage(string? version)
+    {
+        var releases = IsForkBuild ? ForkReleaseFeed.DownloadPage : OfficialReleasePage;
+        if (version is null || ParseVersion(version) is null)
+        {
+            return releases;
+        }
+
+        var tag = IsForkBuild ? ForkReleaseFeed.TagFor(version) : $"v{version}";
+        return $"{releases}/tag/{Uri.EscapeDataString(tag)}";
+    }
+
     internal async Task<LauncherReleaseAsset> GetInstallerAsync(string version, CancellationToken cancellationToken)
     {
         if (HasCustomSource || ParseVersion(version) is not { } target || target <= CurrentVersion
@@ -131,9 +143,14 @@ public sealed class UpdateService(
             http, checksum.Url!, cancellationToken, maxBytes: 512).ConfigureAwait(false);
         cancellationToken.ThrowIfCancellationRequested();
 
+        if (remote.Outcome != RemoteTextOutcome.Fetched)
+        {
+            throw new IOException($"The installer checksum could not be downloaded: {remote.Detail}");
+        }
+
         var parts = remote.Text.Trim().Split([' ', '\t'], StringSplitOptions.RemoveEmptyEntries);
 
-        if (remote.Outcome != RemoteTextOutcome.Fetched || parts is not [var hash, var file]
+        if (parts is not [var hash, var file]
             || file != name || !UpdateInstallation.IsHash(hash)
             || (installer.Digest is { Length: > 0 } digest
                 && !digest.Equals($"sha256:{hash}", StringComparison.OrdinalIgnoreCase)))

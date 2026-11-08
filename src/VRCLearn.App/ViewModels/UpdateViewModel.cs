@@ -202,6 +202,7 @@ public sealed partial class UpdateViewModel : ObservableObject
     {
         _ when _service.UsesOfficialDownloadPage => _localization["Settings.Update.Stage"],
         UpdatePhase.Pending => _localization["Settings.Update.CancelPending"],
+        UpdatePhase.DownloadFailed => _localization["Settings.Update.ManualDownload"],
         _ when _useDownloadPage => _localization["Settings.Update.Stage"],
         UpdatePhase.UpToDate => _localization["Settings.Update.UpToDate"],
         UpdatePhase.Available when _canInstall => _localization["Settings.Update.Stage"],
@@ -215,10 +216,10 @@ public sealed partial class UpdateViewModel : ObservableObject
         _ when _service.UsesOfficialDownloadPage => "",
         UpdatePhase.Downloading => _localization.Format("Settings.Update.Downloading", Percent),
         UpdatePhase.Pending => _localization.Format("Settings.Update.Pending", Version ?? ""),
+        UpdatePhase.DownloadFailed => _localization["Settings.Update.DownloadFailed"],
         UpdatePhase.InstallFailed when _useDownloadPage => _localization["Settings.Update.InstallFailedDownloadPage"],
         _ when _useDownloadPage => _localization["Settings.Update.DownloadPageHint"],
         UpdatePhase.Available when _canInstall => _localization.Format("Settings.Update.StageHint", Version ?? ""),
-        UpdatePhase.DownloadFailed => _localization["Settings.Update.DownloadFailed"],
         UpdatePhase.InstallFailed => _localization["Settings.Update.InstallFailed"],
         _ => "",
     };
@@ -302,7 +303,8 @@ public sealed partial class UpdateViewModel : ObservableObject
     [RelayCommand(CanExecute = nameof(CanAct))]
     private async Task Act()
     {
-        if (_useDownloadPage && (Phase != UpdatePhase.Pending || _service.UsesOfficialDownloadPage))
+        if (_service.UsesOfficialDownloadPage
+            || (_useDownloadPage && Phase is not (UpdatePhase.Pending or UpdatePhase.DownloadFailed)))
         {
             OpenDownload(_service.BrowserDownloadUrl);
             return;
@@ -316,6 +318,10 @@ public sealed partial class UpdateViewModel : ObservableObject
                     Phase = UpdatePhase.Available;
                 }
 
+                break;
+
+            case UpdatePhase.DownloadFailed:
+                OpenDownload(_service.GetReleaseDownloadPage(Version));
                 break;
 
             case UpdatePhase.Available when _canInstall && Version is { } version:
