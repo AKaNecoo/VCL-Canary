@@ -58,8 +58,13 @@ jobs:
             throw "Set the Canary build series for upstream $base before release (run $runNumber, build $build)."
           }
 
+          $firstPatch = [int]$series.firstPatch
+          if ($firstPatch -lt 101 -or ($firstPatch % 100) -ne 1) {
+            throw 'The Canary patch range must start at 101, 201, 301, and so on.'
+          }
+
           $upstream = [version]$base
-          $patch = $upstream.Build * 100 + $build
+          $patch = $firstPatch + $build - 1
           if ($patch -gt 65534 -or $runNumber -gt 65534) {
             throw 'The Canary version exceeds the Windows assembly version range.'
           }
