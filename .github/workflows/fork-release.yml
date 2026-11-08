@@ -73,13 +73,15 @@ jobs:
             }
 
             $pattern = if ($branch -eq 'main') { 'fork-v*+build.*' } else { 'fork-v*-beta.*' }
-            $previous = git describe --tags --abbrev=0 --match $pattern --exclude $env:RELEASE_TAG HEAD 2>$null
-            if ($LASTEXITCODE -eq 0) {
-              git diff --quiet $previous HEAD -- $path
-              if ($LASTEXITCODE -eq 0) {
+            $tags = git for-each-ref --merged=HEAD --sort=-version:refname --format='%(refname:short)' "refs/tags/$pattern"
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+            $previous = $tags | Where-Object { $_ -ne $env:RELEASE_TAG } | Select-Object -First 1
+            if ($previous) {
+              $changed = git diff --name-only $previous HEAD -- $path
+              if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+              if (!$changed) {
                 throw "Update $path since $previous before publishing."
               }
-              if ($LASTEXITCODE -ne 1) { exit $LASTEXITCODE }
             }
           }
 
