@@ -198,6 +198,9 @@ public sealed partial class ProjectDetailViewModel(
     public bool HasBackups => Backups.Count > 0;
 
     [ObservableProperty]
+    private bool _areBackupsExpanded;
+
+    [ObservableProperty]
     private BackupItemViewModel? _pendingRestore;
 
     partial void OnPendingRestoreChanged(BackupItemViewModel? value)
@@ -396,6 +399,7 @@ public sealed partial class ProjectDetailViewModel(
         InstalledEditors.Clear();
         SelectedEditor = null;
         PendingRestore = null;
+        AreBackupsExpanded = false;
         CopyDestination = null;
         UnityHubInstallLink = null;
         ClearPending();
