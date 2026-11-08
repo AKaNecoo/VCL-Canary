@@ -60,6 +60,22 @@ internal sealed partial class ForkReleaseFeed
             ? build.Version
             : null;
 
+    internal static bool IsNewer(Version? candidate, Version current)
+    {
+        if (candidate is null)
+        {
+            return false;
+        }
+
+        var comparison = (candidate.Major, candidate.Minor, candidate.Build)
+            .CompareTo((current.Major, current.Minor, current.Build));
+
+        // Only releases from the old naming scheme share the same three-part version.
+        return comparison > 0 || (comparison == 0
+            && candidate.Revision >= 0 && current.Revision >= 0
+            && candidate.Revision > current.Revision);
+    }
+
     internal static bool IsPreview(string version) =>
         ReadBuildVersion(version) is { Channel: "alpha" or "beta" };
 
@@ -101,7 +117,7 @@ internal sealed partial class ForkReleaseFeed
                 return RemoteText.Failure("The fork's latest release does not match the stable channel.");
             }
 
-            return ParseVersion(version, preference) > CurrentVersion
+            return IsNewer(ParseVersion(version, preference), CurrentVersion)
                 && await IncludesCurrentBuildAsync(http, version, headers, cancellationToken).ConfigureAwait(false)
                 ? response with { Text = version }
                 : response with { Text = CurrentText };
@@ -125,7 +141,7 @@ internal sealed partial class ForkReleaseFeed
 
             var candidates = releases.Select(release => Match(release, preference)).OfType<string>()
                 .Select(text => (Text: text, Version: ParseVersion(text, preference)))
-                .Where(candidate => candidate.Version > CurrentVersion)
+                .Where(candidate => IsNewer(candidate.Version, CurrentVersion))
                 .OrderByDescending(candidate => candidate.Version);
 
             foreach (var candidate in candidates)
@@ -203,20 +219,25 @@ internal sealed partial class ForkReleaseFeed
     private static (string Channel, Version Version)? ReadBuildVersion(string version)
     {
         var match = BuildVersion().Match(version);
-        if (!match.Success || !Version.TryParse($"{match.Groups[1].Value}.{match.Groups[3].Value}", out var number))
+        if (!match.Success)
         {
             return null;
         }
 
-        return (match.Groups[2].Value switch
+        var text = match.Groups["version"].Value;
+        if (match.Groups["revision"] is { Success: true } revision)
         {
-            "-alpha." => "alpha",
-            "-beta." => "beta",
-            _ => "stable",
-        }, number);
+            text += $".{revision.Value}";
+        }
+
+        var channel = match.Groups["channel"];
+        return Version.TryParse(text, out var number)
+            ? (channel.Success ? channel.Value : "stable", number)
+            : null;
     }
 
-    [GeneratedRegex(@"^(\d+\.\d+\.\d+)(\+build\.|-beta\.|-alpha\.)([1-9]\d*)$", RegexOptions.CultureInvariant)]
+    [GeneratedRegex(@"^(?<version>\d+\.\d+\.\d+)(?:-(?<channel>alpha|beta)(?:\.(?<revision>[1-9]\d*))?|\+build\.(?<revision>[1-9]\d*))?$",
+        RegexOptions.CultureInvariant)]
     private static partial Regex BuildVersion();
 
     private sealed class Release

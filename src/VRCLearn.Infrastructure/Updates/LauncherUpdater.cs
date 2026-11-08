@@ -181,8 +181,7 @@ public sealed class LauncherUpdater(
 
     private PendingLauncherUpdate? ReadPending(string path) =>
         JsonFileStore.Peek<PendingLauncherUpdate>(path) is { } pending
-        && releases.ParseVersion(pending.Version) is { } version
-        && version > releases.CurrentVersion
+        && ForkReleaseFeed.IsNewer(releases.ParseVersion(pending.Version), releases.CurrentVersion)
         && pending.Size is > 0 and <= UpdateInstallation.MaxInstallerSize
         && UpdateInstallation.IsHash(pending.Sha256)
             ? pending

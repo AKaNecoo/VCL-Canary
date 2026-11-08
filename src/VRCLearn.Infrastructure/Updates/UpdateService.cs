@@ -89,7 +89,8 @@ public sealed class UpdateService(
 
     internal async Task<LauncherReleaseAsset> GetInstallerAsync(string version, CancellationToken cancellationToken)
     {
-        if (HasCustomSource || ParseVersion(version) is not { } target || target <= CurrentVersion
+        if (HasCustomSource || ParseVersion(version) is not { } target
+            || !ForkReleaseFeed.IsNewer(target, CurrentVersion)
             || (_fork is null && target.ToString() != version))
         {
             throw new InvalidDataException("The requested version is not eligible for automatic installation.");
@@ -237,7 +238,7 @@ public sealed class UpdateService(
 
     private UpdateStatus Fail(string channel, string detail)
     {
-        logger.LogError("检查启动器更新失败（{Version}，{Channel}）：{Detail}", CurrentVersionText, channel, detail);
+        logger.LogError("检查启动器更新失败（{Version}，{Channel}）：{Detail}", CurrentVersion.ToString(3), channel, detail);
 
         return new UpdateStatus(UpdateKind.Failed);
     }
@@ -253,14 +254,14 @@ public sealed class UpdateService(
 
         var current = CurrentVersion;
 
-        if (latest > current)
+        if (ForkReleaseFeed.IsNewer(latest, current))
         {
-            logger.LogInformation("发现新版本：{Latest}，当前 {Current}", latest, current);
+            logger.LogInformation("发现新版本：{Latest}，当前 {Current}", latest.ToString(3), current.ToString(3));
 
             return new UpdateStatus(UpdateKind.UpdateAvailable, tag, DownloadUrl());
         }
 
-        logger.LogInformation("已是最新版本：{Current}", current);
+        logger.LogInformation("已是最新版本：{Current}", current.ToString(3));
 
         return new UpdateStatus(UpdateKind.UpToDate);
     }
