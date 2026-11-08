@@ -1,4 +1,5 @@
-﻿#define MyAppName "VRCLearn Launcher"
+﻿#define MyAppName "VCL Canary"
+#define MyLauncherWindowName "VRCLearn Launcher"
 #define MyAppExeName "VRCLearnLauncher.exe"
 #define MyAppMutex "VRCLearnLauncher.SingleInstance"
 
@@ -14,10 +15,11 @@ AppId={{C3B4BABC-4F9B-4281-A58B-02AA08BC61B7}
 AppName={#MyAppName}
 AppVersion={#MyAppVersion}
 AppVerName={#MyAppName} {#MyAppVersion}
-AppPublisherURL=https://github.com/VRLearn-Official/VRCLearn_Launcher
-AppSupportURL=https://github.com/VRLearn-Official/VRCLearn_Launcher/issues/
+AppPublisher=AKaNecoo
+AppPublisherURL=https://github.com/AKaNecoo/VCL-Canary
+AppSupportURL=https://github.com/AKaNecoo/VCL-Canary/issues/
 DefaultDirName={localappdata}\Programs\VRCLearnLauncher
-DefaultGroupName={#MyAppName}
+DefaultGroupName={#MyLauncherWindowName}
 DisableProgramGroupPage=yes
 PrivilegesRequired=lowest
 OutputDir=..\artifacts\releases
@@ -60,8 +62,8 @@ Source: "..\artifacts\publish\*"; DestDir: "{app}"; Flags: ignoreversion recurse
 Type: filesandordirs; Name: "{app}\Plugins"
 
 [Icons]
-Name: "{group}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"
-Name: "{autodesktop}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; Tasks: desktopicon
+Name: "{group}\{#MyLauncherWindowName}"; Filename: "{app}\{#MyAppExeName}"
+Name: "{autodesktop}\{#MyLauncherWindowName}"; Filename: "{app}\{#MyAppExeName}"; Tasks: desktopicon
 
 [Run]
 Filename: "{app}\{#MyAppExeName}"; Description: "{cm:LaunchProgram,{#MyAppName}}"; Flags: nowait postinstall skipifsilent
@@ -111,7 +113,7 @@ begin
   if Result then
     Exit;
 
-  Window := FindWindowByWindowName('{#MyAppName}');
+  Window := FindWindowByWindowName('{#MyLauncherWindowName}');
   if (Window = 0) or (GetWindowProcessId(Window, ProcessId) = 0) then
     Exit;
 

@@ -8,7 +8,7 @@ namespace VRCLearn.Infrastructure.Updates;
 
 internal sealed partial class ForkReleaseFeed
 {
-    private const string Repository = "AKaNecoo/VRCLearn_Launcher";
+    private const string Repository = "AKaNecoo/VCL-Canary";
     private const string TagPrefix = "fork-v";
     private const string Api = "https://api.github.com/repos/" + Repository;
     internal const string DownloadPage = "https://github.com/" + Repository + "/releases";

@@ -524,7 +524,7 @@
                         <HeaderedContentControl.Header>
                             <StackPanel>
                                 <TextBlock Text="{markup:Tr Settings.SoftwareName}" />
-                                <TextBlock Style="{StaticResource Caption}" Text="VRCLearn Launcher（VCL）" />
+                                <TextBlock Style="{StaticResource Caption}" Text="VCL Canary" />
                             </StackPanel>
                         </HeaderedContentControl.Header>
                         <StackPanel Orientation="Horizontal">

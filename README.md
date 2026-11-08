@@ -1,19 +1,19 @@
 <div align="center">
-  <img src="docs/images/logo.png" alt="VRCLearn Launcher" width="120">
-  <h1>VRCLearn Launcher</h1>
-  <p>Windows 上的 VRChat 包与项目管理器，基于 .NET 10 与 WPF 构建。</p>
+  <img src="docs/images/logo.png" alt="VCL Canary" width="120">
+  <h1>VCL Canary</h1>
+  <p>VCL Canary 是 AKaNecoo 独立维护的 <a href="https://github.com/VRLearn-Official/VRCLearn_Launcher">VRCLearn Launcher 社区分支</a>。原项目由 VRLearn 开发。Canary 为 Windows 上的 VRChat 工程和 VPM 包管理器，基于 .NET 10 与 WPF。</p>
 
-  [下载](https://github.com/VRLearn-Official/VRCLearn_Launcher/releases) · [English](README.en.md) · [问题反馈](https://github.com/VRLearn-Official/VRCLearn_Launcher/issues)
+  [下载](https://github.com/AKaNecoo/VCL-Canary/releases) · [English](README.en.md) · [问题反馈](https://github.com/AKaNecoo/VCL-Canary/issues)
 </div>
 
 <p align="center">
-  <a href="https://github.com/VRLearn-Official/VRCLearn_Launcher/actions/workflows/build.yml"><img src="https://github.com/VRLearn-Official/VRCLearn_Launcher/actions/workflows/build.yml/badge.svg" alt="Build"></a>
-  <a href="https://github.com/VRLearn-Official/VRCLearn_Launcher/releases"><img src="https://img.shields.io/github/v/release/VRLearn-Official/VRCLearn_Launcher?display_name=tag&sort=semver" alt="Release"></a>
+  <a href="https://github.com/AKaNecoo/VCL-Canary/actions/workflows/fork-release.yml"><img src="https://github.com/AKaNecoo/VCL-Canary/actions/workflows/fork-release.yml/badge.svg" alt="Build"></a>
+  <a href="https://github.com/AKaNecoo/VCL-Canary/releases"><img src="https://img.shields.io/github/v/release/AKaNecoo/VCL-Canary?display_name=tag&sort=semver" alt="Release"></a>
   <img src="https://img.shields.io/badge/platform-Windows%2010%2B%20x64-0078D4" alt="Platform">
-  <a href="LICENSE"><img src="https://img.shields.io/github/license/VRLearn-Official/VRCLearn_Launcher" alt="License"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/github/license/AKaNecoo/VCL-Canary" alt="License"></a>
 </p>
 
-VRCLearn Launcher 把 VPM 仓库、包与 Unity 项目集中在一处管理，是独立的 C#/WPF 应用，与 VRChat Inc.、Unity Technologies 无隶属关系。
+VCL Canary 把 VPM 仓库、包与 Unity 项目集中在一处管理，是独立的 C#/WPF 应用，与 VRChat Inc.、Unity Technologies 无隶属关系。
 
 > [!WARNING]
 > 若您已积累了大量旧项目，不建议使用本工具，请继续使用官方 VCC 或 ALCOM 等工具。
@@ -38,7 +38,7 @@ VRCLearn Launcher 把 VPM 仓库、包与 Unity 项目集中在一处管理，�
 
 ## 安装
 
-从 [Releases](https://github.com/VRLearn-Official/VRCLearn_Launcher/releases) 下载 `VRCLearnLauncher-<版本>-win-x64-Setup.exe` 并运行。
+从 [Releases](https://github.com/AKaNecoo/VCL-Canary/releases) 下载 `VRCLearnLauncher-<版本>-win-x64-Setup.exe` 并运行。
 
 - Windows 10 或更高版本，x64
 - 安装包已内置 .NET 10 桌面运行时，无需单独安装
@@ -67,7 +67,7 @@ dotnet run --project src/VRCLearn.App/VRCLearn.App.csproj
 
 发布目标为 `net10.0-windows` / `win-x64`，自包含。
 
-GitHub Actions 会在推送到 `main`、打 `v*` 标签或手动触发时构建安装包，每次运行都会把 Setup 可执行文件作为 artifact 上传。推送 `v*` 标签还会创建草稿 GitHub Release，附上 Setup 安装包和 SHA256 校验文件。
+GitHub Actions 在推送到 `dev` 或 `beta` 时分别发布 Alpha 或 Beta。正式版从受保护的 `main` 手动发布。Canary 在发布版本的第三段编码上游补丁号与两位构建号，例如以 `1.34.1` 为基线的第 `01` 个构建为 `1.34.101`。
 
 ## 项目结构
 
