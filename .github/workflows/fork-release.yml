@@ -2,7 +2,7 @@ name: Fork Installer Release
 
 on:
   push:
-    branches: [main, beta, dev]
+    branches: [beta, dev]
   workflow_dispatch:
 
 permissions:
@@ -10,7 +10,12 @@ permissions:
 
 jobs:
   build:
-    if: github.repository == 'AKaNecoo/VRCLearn_Launcher' && github.ref_type == 'branch' && contains(fromJSON('["main", "beta", "dev"]'), github.ref_name) && !github.event.deleted
+    if: >-
+      github.repository == 'AKaNecoo/VRCLearn_Launcher'
+      && github.ref_type == 'branch'
+      && contains(fromJSON('["main", "beta", "dev"]'), github.ref_name)
+      && (github.ref_name != 'main' || github.event_name == 'workflow_dispatch')
+      && !github.event.deleted
     runs-on: windows-latest
     outputs:
       channel: ${{ steps.version.outputs.channel }}
@@ -21,6 +26,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
+          fetch-depth: 0
           persist-credentials: false
 
       - uses: actions/setup-dotnet@v4
@@ -52,7 +58,35 @@ jobs:
           $asset = "VRCLearnLauncher-$($version.Replace('+', '-'))-win-x64-Setup.exe"
 
           "channel=$channel", "version=$version", "tag=fork-v$version", "asset=$asset" >> $env:GITHUB_OUTPUT
-          "BASE_VERSION=$base", "RELEASE_VERSION=$version", "SETUP_ASSET=$asset" >> $env:GITHUB_ENV
+          "BASE_VERSION=$base", "RELEASE_VERSION=$version", "RELEASE_TAG=fork-v$version", "SETUP_ASSET=$asset" >> $env:GITHUB_ENV
+
+      - name: Prepare release notes
+        shell: pwsh
+        run: |
+          $branch = $env:GITHUB_REF_NAME
+          $notes = '## Alpha 开发构建'
+          if ($branch -ne 'dev') {
+            $path = ".github/fork-release-notes/$branch.md"
+            $notes = [IO.File]::ReadAllText($path).Trim()
+            if ([string]::IsNullOrWhiteSpace($notes)) {
+              throw "Update the release notes at $path before publishing."
+            }
+
+            $pattern = if ($branch -eq 'main') { 'fork-v*+build.*' } else { 'fork-v*-beta.*' }
+            $previous = git describe --tags --abbrev=0 --match $pattern --exclude $env:RELEASE_TAG HEAD 2>$null
+            if ($LASTEXITCODE -eq 0) {
+              git diff --quiet $previous HEAD -- $path
+              if ($LASTEXITCODE -eq 0) {
+                throw "Update $path since $previous before publishing."
+              }
+              if ($LASTEXITCODE -ne 1) { exit $LASTEXITCODE }
+            }
+          }
+
+          $run = "$env:GITHUB_SERVER_URL/$env:GITHUB_REPOSITORY/actions/runs/$env:GITHUB_RUN_ID"
+          $output = @($notes, '', "源代码提交为 $env:GITHUB_SHA。[构建记录]($run)") -join [char]10
+          New-Item -ItemType Directory -Path 'artifacts/releases' -Force | Out-Null
+          [IO.File]::WriteAllText('artifacts/releases/release-notes.md', $output + [char]10)
 
       - name: Publish Windows x64 application
         shell: pwsh
@@ -97,13 +131,14 @@ jobs:
           $hash = (Get-FileHash -LiteralPath $exe -Algorithm SHA256).Hash.ToLowerInvariant()
           [IO.File]::WriteAllText("$exe.sha256", "$hash  $env:SETUP_ASSET" + [char]10)
 
-      - name: Upload installer and checksum
+      - name: Upload installer, checksum and release notes
         uses: actions/upload-artifact@v4
         with:
           name: win-x64-installer
           path: |
             artifacts/releases/${{ steps.version.outputs.asset }}
             artifacts/releases/${{ steps.version.outputs.asset }}.sha256
+            artifacts/releases/release-notes.md
           if-no-files-found: error
 
   release:
@@ -158,10 +193,8 @@ jobs:
             $flags = @()
             if ($preview) { $flags += '--prerelease' }
             $title = "VRCLearn Launcher $env:RELEASE_VERSION"
-            $run = "$env:GITHUB_SERVER_URL/$repo/actions/runs/$env:GITHUB_RUN_ID"
-            $notes = "此安装包由 $env:GITHUB_REF_NAME 分支自动构建。源代码提交为 $env:GITHUB_SHA。[构建记录]($run)"
             gh release create $tag $asset $checksum --draft --verify-tag --latest=false `
-              --title $title --notes $notes @flags
+              --title $title --notes-file release-notes.md @flags
             if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           } elseif (($existing | ConvertFrom-Json).isDraft) {
             gh release upload $tag $asset $checksum --clobber
