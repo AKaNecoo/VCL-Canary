@@ -4,6 +4,9 @@
 #ifndef MyAppVersion
   #error MyAppVersion must be defined
 #endif
+#ifndef MyAppFileVersion
+  #define MyAppFileVersion MyAppVersion + ".0"
+#endif
 
 [Setup]
 AppId={{C3B4BABC-4F9B-4281-A58B-02AA08BC61B7}
@@ -27,7 +30,7 @@ AppMutex=VRCLearnLauncher.SingleInstance
 CloseApplications=yes
 RestartApplications=no
 UninstallDisplayIcon={app}\{#MyAppExeName}
-VersionInfoVersion={#MyAppVersion}.0
+VersionInfoVersion={#MyAppFileVersion}
 VersionInfoProductName={#MyAppName}
 VersionInfoDescription={#MyAppName} Setup
 
