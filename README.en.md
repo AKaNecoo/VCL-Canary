@@ -67,7 +67,9 @@ dotnet run --project src/VRCLearn.App/VRCLearn.App.csproj
 
 Published builds target `net10.0-windows` / `win-x64` and are self-contained.
 
-GitHub Actions publishes Alpha from `dev` and Beta from `beta` on push. Stable releases from protected `main` are published manually. Canary keeps the upstream major and minor numbers and assigns a patch range to each build series. The `1.35` series starts at `1.35.101`, with build `02` at `1.35.102`.
+GitHub Actions publishes Alpha from `dev` and Beta from `beta` on push. Stable releases from protected `main` are published manually. Canary keeps the upstream major and minor numbers. Alpha, Beta, and stable share one increasing patch sequence. The product version has three parts, such as `1.35.109`. Release tags and installer filenames use names such as `1.35.109-alpha`, `1.35.110`, and `1.35.111-beta`.
+
+If you have an older Canary build with a tag such as `1.35.108-alpha.8`, download the new installer and run it over your existing installation once. In-app updates are available after that upgrade.
 
 ## Project layout
 
