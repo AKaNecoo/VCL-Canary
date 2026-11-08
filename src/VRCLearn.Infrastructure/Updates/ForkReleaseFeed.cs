@@ -24,6 +24,7 @@ internal sealed partial class ForkReleaseFeed
     }
 
     internal string CurrentText { get; }
+    internal string? DisplayText { get; private init; }
     internal string Channel { get; }
     internal Version CurrentVersion { get; }
     internal string? Commit { get; }
@@ -40,7 +41,10 @@ internal sealed partial class ForkReleaseFeed
         }
 
         var commit = metadata.FirstOrDefault(attribute => attribute.Key == "VclForkCommit")?.Value;
-        return new ForkReleaseFeed(version, build.Channel, build.Version, IsCommit(commit) ? commit : null);
+        return new ForkReleaseFeed(version, build.Channel, build.Version, IsCommit(commit) ? commit : null)
+        {
+            DisplayText = metadata.FirstOrDefault(attribute => attribute.Key == "VclCanaryDisplayVersion")?.Value,
+        };
     }
 
     internal static int ChannelRank(string? channel) => channel switch

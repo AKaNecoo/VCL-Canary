@@ -19,6 +19,7 @@
   <ItemGroup>
     <InternalsVisibleTo Include="VRCLearn.Infrastructure.Tests" />
     <AssemblyMetadata Include="VclForkBuild" Value="true" Condition="'$(VclForkBuild)' == 'true'" />
+    <AssemblyMetadata Include="VclCanaryDisplayVersion" Value="$(VclCanaryDisplayVersion)" Condition="'$(VclCanaryDisplayVersion)' != ''" />
     <AssemblyMetadata Include="VclForkCommit" Value="$(VclForkCommit)" Condition="'$(VclForkCommit)' != ''" />
   </ItemGroup>
 

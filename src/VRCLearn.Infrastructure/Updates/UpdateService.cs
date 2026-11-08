@@ -46,7 +46,7 @@ public sealed class UpdateService(
 
     public bool IsForkBuild => _fork is not null;
 
-    public string CurrentVersionText => _fork?.CurrentText ?? CurrentVersion.ToString();
+    public string CurrentVersionText => _fork?.DisplayText ?? _fork?.CurrentText ?? CurrentVersion.ToString();
 
     public string UpdateChannel => configs.Current.LauncherUpdateChannel is { } channel
         && IsSupportedChannel(channel) ? channel : _fork?.Channel ?? "stable";
