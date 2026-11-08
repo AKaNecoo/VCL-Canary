@@ -192,20 +192,13 @@ public sealed class UpdateService(
             state = new UpdateState { Source = source };
         }
 
-        if (!force && DateTimeOffset.UtcNow - state.CheckedAt < CheckInterval)
+        if (!force && state.Tag.Length > 0 && DateTimeOffset.UtcNow - state.CheckedAt < CheckInterval)
         {
-            if (state.Tag.Length > 0)
-            {
-                return Evaluate(state.Tag, fork, channel);
-            }
-
-            logger.LogInformation("上次检查失败，本次启动不再重试");
-
-            return new UpdateStatus(UpdateKind.Failed);
+            return Evaluate(state.Tag, fork, channel);
         }
 
         var remote = fork is null
-            ? await RemoteTextFile.GetAsync(http, VersionUrl(), CancellationToken.None, HeadersFor(state.ETag))
+            ? await RemoteTextFile.GetForUpdateCheckAsync(http, VersionUrl(), CancellationToken.None, HeadersFor(state.ETag))
             : await fork.FetchAsync(http, channel,
                 HeadersFor(channel == "stable" && fork.Channel == "stable" ? state.ETag : ""), CancellationToken.None);
 
@@ -220,12 +213,18 @@ public sealed class UpdateService(
 
         if (remote.Outcome != RemoteTextOutcome.Fetched)
         {
-            return Fail(state, $"获取最新版本号失败：{remote.Detail}");
+            return Fail(channel, $"获取最新版本号失败：{remote.Detail}");
         }
 
         if ((fork is null ? ReadTag(remote.Text) : remote.Text) is not { } text)
         {
-            return Fail(state, "版本接口返回的内容无法解析");
+            return Fail(channel, "版本接口返回的内容无法解析");
+        }
+
+        var status = Evaluate(text, fork, channel);
+        if (status.Kind == UpdateKind.Failed)
+        {
+            return status;
         }
 
         state.Tag = text;
@@ -233,15 +232,12 @@ public sealed class UpdateService(
         state.CheckedAt = DateTimeOffset.UtcNow;
         states.Save(state);
 
-        return Evaluate(text, fork, channel);
+        return status;
     }
 
-    private UpdateStatus Fail(UpdateState state, string message)
+    private UpdateStatus Fail(string channel, string detail)
     {
-        logger.LogWarning("{Message}", message);
-
-        state.CheckedAt = DateTimeOffset.UtcNow;
-        states.Save(state);
+        logger.LogError("检查启动器更新失败（{Version}，{Channel}）：{Detail}", CurrentVersionText, channel, detail);
 
         return new UpdateStatus(UpdateKind.Failed);
     }
@@ -252,9 +248,7 @@ public sealed class UpdateService(
             : tag == fork.CurrentText ? fork.CurrentVersion : ForkReleaseFeed.ParseVersion(tag, channel);
         if (version is not { } latest)
         {
-            logger.LogWarning("版本号格式不对：{Text}", tag);
-
-            return new UpdateStatus(UpdateKind.Failed);
+            return Fail(channel, "版本接口返回的版本号无效");
         }
 
         var current = CurrentVersion;

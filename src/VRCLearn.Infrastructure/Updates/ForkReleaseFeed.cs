@@ -88,7 +88,7 @@ internal sealed partial class ForkReleaseFeed
     {
         if (preference == "stable")
         {
-            var response = await RemoteTextFile.GetAsync(
+            var response = await RemoteTextFile.GetForUpdateCheckAsync(
                 http, $"{Api}/releases/latest", cancellationToken, headers, MaxResponseSize).ConfigureAwait(false);
             if (response.Outcome != RemoteTextOutcome.Fetched)
             {
@@ -109,7 +109,7 @@ internal sealed partial class ForkReleaseFeed
 
         for (var page = 1; ; page++)
         {
-            var response = await RemoteTextFile.GetAsync(
+            var response = await RemoteTextFile.GetForUpdateCheckAsync(
                 http, $"{Api}/releases?per_page={PageSize}&page={page}", cancellationToken, headers, MaxResponseSize)
                 .ConfigureAwait(false);
             if (response.Outcome != RemoteTextOutcome.Fetched)
