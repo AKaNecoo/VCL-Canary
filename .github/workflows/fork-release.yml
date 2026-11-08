@@ -1,0 +1,179 @@
+name: Fork Installer Release
+
+on:
+  push:
+    branches: [main, beta, dev]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    if: github.repository == 'AKaNecoo/VRCLearn_Launcher' && github.ref_type == 'branch' && contains(fromJSON('["main", "beta", "dev"]'), github.ref_name) && !github.event.deleted
+    runs-on: windows-latest
+    outputs:
+      channel: ${{ steps.version.outputs.channel }}
+      version: ${{ steps.version.outputs.version }}
+      tag: ${{ steps.version.outputs.tag }}
+      asset: ${{ steps.version.outputs.asset }}
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "10.0.x"
+
+      - name: Select release channel and version
+        id: version
+        shell: pwsh
+        run: |
+          $props = [xml](Get-Content -LiteralPath Directory.Build.props -Raw)
+          $base = $props.SelectSingleNode('/Project/PropertyGroup/Version').InnerText.Trim()
+          if ($base -notmatch '^\d+\.\d+\.\d+$') {
+            throw "Expected a major.minor.patch version, got '$base'."
+          }
+
+          $channel = switch ($env:GITHUB_REF_NAME) {
+            'main' { 'stable' }
+            'beta' { 'beta' }
+            'dev' { 'alpha' }
+            default { throw "Unsupported release branch '$env:GITHUB_REF_NAME'." }
+          }
+
+          $version = if ($channel -eq 'stable') {
+            "$base+build.$env:GITHUB_RUN_NUMBER"
+          } else {
+            "$base-$channel.$env:GITHUB_RUN_NUMBER"
+          }
+          $asset = "VRCLearnLauncher-$($version.Replace('+', '-'))-win-x64-Setup.exe"
+
+          "channel=$channel", "version=$version", "tag=fork-v$version", "asset=$asset" >> $env:GITHUB_OUTPUT
+          "BASE_VERSION=$base", "RELEASE_VERSION=$version", "SETUP_ASSET=$asset" >> $env:GITHUB_ENV
+
+      - name: Publish Windows x64 application
+        shell: pwsh
+        run: |
+          dotnet restore src/VRCLearn.App/VRCLearn.App.csproj -r win-x64 --source https://api.nuget.org/v3/index.json
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+          dotnet publish src/VRCLearn.App/VRCLearn.App.csproj -c Release -r win-x64 --no-restore `
+            --self-contained true "-p:Version=$env:RELEASE_VERSION" `
+            -p:DebugType=none -p:DebugSymbols=false -o artifacts/publish
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Build installer and checksum
+        shell: pwsh
+        run: |
+          choco install innosetup --no-progress -y
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+          $iscc = "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe"
+          if (!(Test-Path -LiteralPath $iscc)) {
+            $iscc = "$env:ProgramFiles\Inno Setup 6\ISCC.exe"
+          }
+          $name = [IO.Path]::GetFileNameWithoutExtension($env:SETUP_ASSET)
+          & $iscc "/DMyAppVersion=$env:RELEASE_VERSION" "/DMyAppFileVersion=$env:BASE_VERSION.0" `
+            "/F$name" build/installer.iss
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+          $exe = Join-Path 'artifacts/releases' $env:SETUP_ASSET
+          $hash = (Get-FileHash -LiteralPath $exe -Algorithm SHA256).Hash.ToLowerInvariant()
+          [IO.File]::WriteAllText("$exe.sha256", "$hash  $env:SETUP_ASSET" + [char]10)
+
+      - name: Upload installer and checksum
+        uses: actions/upload-artifact@v4
+        with:
+          name: win-x64-installer
+          path: |
+            artifacts/releases/${{ steps.version.outputs.asset }}
+            artifacts/releases/${{ steps.version.outputs.asset }}.sha256
+          if-no-files-found: error
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+      RELEASE_CHANNEL: ${{ needs.build.outputs.channel }}
+      RELEASE_VERSION: ${{ needs.build.outputs.version }}
+      RELEASE_TAG: ${{ needs.build.outputs.tag }}
+      SETUP_ASSET: ${{ needs.build.outputs.asset }}
+
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: win-x64-installer
+          path: release-assets
+
+      - name: Verify installer checksum
+        working-directory: release-assets
+        run: sha256sum -c "$SETUP_ASSET.sha256"
+
+      - name: Publish GitHub Release
+        shell: pwsh
+        working-directory: release-assets
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $tag = $env:RELEASE_TAG
+          $repo = $env:GH_REPO
+          $asset = $env:SETUP_ASSET
+          $checksum = "$asset.sha256"
+          $preview = $env:RELEASE_CHANNEL -ne 'stable'
+          $tagRef = "repos/$repo/git/ref/tags/$([Uri]::EscapeDataString($tag))"
+
+          $tagSha = gh api $tagRef --jq .object.sha 2>$null
+          if ($LASTEXITCODE -ne 0) {
+            gh api --method POST "repos/$repo/git/refs" -f "ref=refs/tags/$tag" -f "sha=$env:GITHUB_SHA" | Out-Null
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+            $tagSha = gh api $tagRef --jq .object.sha
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          }
+          if ($tagSha -ne $env:GITHUB_SHA) {
+            throw "Tag '$tag' points to '$tagSha', expected '$env:GITHUB_SHA'."
+          }
+
+          $fields = 'isDraft,isPrerelease,assets,url'
+          $existing = gh release view $tag --json $fields 2>$null
+          if ($LASTEXITCODE -ne 0) {
+            $flags = @()
+            if ($preview) { $flags += '--prerelease' }
+            $title = "VRCLearn Launcher $env:RELEASE_VERSION"
+            $run = "$env:GITHUB_SERVER_URL/$repo/actions/runs/$env:GITHUB_RUN_ID"
+            $notes = "此安装包由 $env:GITHUB_REF_NAME 分支自动构建。源代码提交为 $env:GITHUB_SHA。[构建记录]($run)"
+            gh release create $tag $asset $checksum --draft --verify-tag --latest=false `
+              --title $title --notes $notes @flags
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          } elseif (($existing | ConvertFrom-Json).isDraft) {
+            gh release upload $tag $asset $checksum --clobber
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          }
+
+          $releaseJson = gh release view $tag --json $fields
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          $release = $releaseJson | ConvertFrom-Json
+          $names = @($release.assets | ForEach-Object { $_.name })
+          if ($release.isPrerelease -ne $preview -or $asset -notin $names -or $checksum -notin $names) {
+            throw "Release '$tag' has the wrong channel or is missing its installer or checksum."
+          }
+
+          if ($release.isDraft) {
+            gh release edit $tag --draft=false --latest=false
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          }
+          if (!$preview) {
+            $mainSha = gh api "repos/$repo/git/ref/heads/main" --jq .object.sha
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+            if ($mainSha -eq $env:GITHUB_SHA) {
+              gh release edit $tag --latest
+              if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+            }
+          }
+
+          "### $env:RELEASE_CHANNEL installer", "", $release.url >> $env:GITHUB_STEP_SUMMARY
