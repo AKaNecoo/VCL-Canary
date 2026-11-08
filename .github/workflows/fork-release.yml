@@ -97,7 +97,7 @@ jobs:
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
           dotnet publish src/VRCLearn.App/VRCLearn.App.csproj -c Release -r win-x64 --no-restore `
-            --self-contained true "-p:Version=$env:RELEASE_VERSION" -p:VclForkBuild=true `
+            --self-contained true "-p:Version=$env:RELEASE_VERSION" -p:VclForkBuild=true "-p:VclForkCommit=$env:GITHUB_SHA" `
             "-p:AssemblyVersion=$env:BASE_VERSION.$env:GITHUB_RUN_NUMBER" `
             -p:DebugType=none -p:DebugSymbols=false -o artifacts/publish
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }

@@ -65,6 +65,12 @@ public sealed partial class UpdateViewModel : ObservableObject
         _proxy = proxy;
         _localization = localization;
         _logger = logger;
+        UpdateChannels =
+        [
+            new("stable", () => _localization["Settings.Update.Channel.Stable"]),
+            new("beta", "Beta"),
+            new("alpha", "Alpha"),
+        ];
         _canInstall = updater.CanInstall;
         _useDownloadPage = ShouldUseDownloadPage();
 
@@ -76,12 +82,59 @@ public sealed partial class UpdateViewModel : ObservableObject
             }
         });
 
-        _localization.PropertyChanged += (_, _) => RefreshUpdateRoute();
+        _localization.PropertyChanged += (_, _) =>
+        {
+            LocalizedOptions.Refresh(UpdateChannels);
+            RefreshUpdateRoute();
+        };
         _proxy.AvailabilityChanged += (_, _) => RefreshUpdateRoute();
-        _configs.Changed += (_, _) => OnPropertyChanged(nameof(AutoUpdateEnabled));
+        _configs.Changed += (_, _) =>
+        {
+            OnPropertyChanged(nameof(AutoUpdateEnabled));
+            OnPropertyChanged(nameof(SelectedUpdateChannel));
+        };
     }
 
     public string CurrentVersionText => _service.CurrentVersionText;
+
+    public bool HasUpdateChannels => _service.IsForkBuild;
+
+    public bool CanSelectUpdateChannel => !_checking && !IsDownloading;
+
+    public IReadOnlyList<Option> UpdateChannels { get; }
+
+    public string SelectedUpdateChannel
+    {
+        get => _service.UpdateChannel;
+        set
+        {
+            if (value == SelectedUpdateChannel || !CanSelectUpdateChannel)
+            {
+                return;
+            }
+
+            if (!_service.TrySetUpdateChannel(value))
+            {
+                OnPropertyChanged(nameof(SelectedUpdateChannel));
+                return;
+            }
+
+            if (Phase == UpdatePhase.Pending)
+            {
+                if (_updater.Pending is not null)
+                {
+                    return;
+                }
+
+                TryCancelPending();
+            }
+
+            Phase = UpdatePhase.Idle;
+            Version = null;
+            _downloadUrl = null;
+            _ = CheckAsync(force: true);
+        }
+    }
 
     public bool CanAutoUpdate => _canInstall && !_useDownloadPage;
 
@@ -172,6 +225,7 @@ public sealed partial class UpdateViewModel : ObservableObject
     {
         NotifyTexts();
         OnPropertyChanged(nameof(IsDownloading));
+        OnPropertyChanged(nameof(CanSelectUpdateChannel));
         ActCommand.NotifyCanExecuteChanged();
     }
 
@@ -352,6 +406,7 @@ public sealed partial class UpdateViewModel : ObservableObject
         }
 
         _checking = true;
+        OnPropertyChanged(nameof(CanSelectUpdateChannel));
         ActCommand.NotifyCanExecuteChanged();
         _expiry.Cancel();
 
@@ -392,6 +447,7 @@ public sealed partial class UpdateViewModel : ObservableObject
         finally
         {
             _checking = false;
+            OnPropertyChanged(nameof(CanSelectUpdateChannel));
             ActCommand.NotifyCanExecuteChanged();
         }
     }

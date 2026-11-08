@@ -86,6 +86,31 @@ public sealed class GuiConfigStore
         return true;
     }
 
+    public bool TrySetLauncherUpdateChannel(string channel)
+    {
+        lock (_gate)
+        {
+            var config = Current;
+
+            if (_readOnly)
+            {
+                return false;
+            }
+
+            var previous = config.LauncherUpdateChannel;
+            config.LauncherUpdateChannel = channel;
+
+            if (!JsonFileStore.Save(_paths.GuiConfigFile, config, Complain))
+            {
+                config.LauncherUpdateChannel = previous;
+                return false;
+            }
+        }
+
+        Changed?.Invoke(this, EventArgs.Empty);
+        return true;
+    }
+
     private void Complain(string message) => _logger.LogWarning("{Message}", message);
 
     private void Unreadable(string message)
