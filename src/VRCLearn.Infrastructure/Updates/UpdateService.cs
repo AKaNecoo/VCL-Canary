@@ -16,6 +16,8 @@ public enum UpdateKind
 
 public sealed record UpdateStatus(UpdateKind Kind, string? Version = null, string? DownloadUrl = null);
 
+internal sealed record LauncherReleaseAsset(Uri Url, string Sha256, long Size);
+
 public sealed class UpdateService(HttpClient http, UpdateStateStore states, ILogger<UpdateService> logger)
 {
     private static readonly TimeSpan CheckInterval = TimeSpan.FromHours(24);
@@ -23,7 +25,9 @@ public sealed class UpdateService(HttpClient http, UpdateStateStore states, ILog
     private const string DefaultReleaseApiUrl =
         "https://api.github.com/repos/VRLearn-Official/VRCLearn_Launcher/releases/latest";
 
-    private const string DefaultDownloadUrl = "https://start.gamemode1.com/pages/vrclearnlauncher/";
+    public const string DefaultDownloadUrl = "https://start.gamemode1.com/pages/vrclearnlauncher/";
+
+    private const string OfficialReleasePage = "https://github.com/VRLearn-Official/VRCLearn_Launcher/releases";
 
     private static readonly IReadOnlyDictionary<string, string> ApiHeaders =
         new Dictionary<string, string>
@@ -36,10 +40,89 @@ public sealed class UpdateService(HttpClient http, UpdateStateStore states, ILog
 
     public bool IsForkBuild => _fork is not null;
 
+    public string CurrentVersionText => _fork?.CurrentText ?? CurrentVersion.ToString();
+
+    internal Version CurrentVersion => _fork?.ParseVersion(_fork.CurrentText)
+        ?? Version.Parse(typeof(UpdateService).Assembly.GetName().Version?.ToString(3) ?? "0.0.0");
+
+    internal Version? ParseVersion(string text) =>
+        _fork is null ? ParseOfficialVersion(text) : _fork.ParseVersion(text);
+
+    internal bool HasCustomSource =>
+        Environment.GetEnvironmentVariable("VRCL_VERSION_URL") is { Length: > 0 }
+        || Environment.GetEnvironmentVariable("VRCL_DOWNLOAD_URL") is { Length: > 0 };
+
     public string ManualDownloadUrl => DownloadUrl();
 
-    public string CurrentVersionText => _fork?.CurrentText ??
-        typeof(UpdateService).Assembly.GetName().Version?.ToString(3) ?? "0.0.0";
+    public string BrowserDownloadUrl => IsForkBuild ? ForkReleaseFeed.DownloadPage : DefaultDownloadUrl;
+
+    internal async Task<LauncherReleaseAsset> GetInstallerAsync(string version, CancellationToken cancellationToken)
+    {
+        if (HasCustomSource || ParseVersion(version) is not { } target || target <= CurrentVersion
+            || (_fork is null && target.ToString() != version))
+        {
+            throw new InvalidDataException("The requested version is not eligible for automatic installation.");
+        }
+
+        var metadata = await RemoteTextFile.GetAsync(
+            http, _fork is null ? DefaultReleaseApiUrl : ForkReleaseFeed.ReleaseApi(version),
+            cancellationToken, ApiHeaders, maxBytes: 512 * 1024).ConfigureAwait(false);
+        cancellationToken.ThrowIfCancellationRequested();
+
+        if (metadata.Outcome != RemoteTextOutcome.Fetched)
+        {
+            throw new IOException($"The release could not be read: {metadata.Detail}");
+        }
+
+        var release = JsonSerializer.Deserialize<GitHubInstallerRelease>(metadata.Text.TrimStart('\uFEFF'));
+        var tag = _fork is null ? $"v{version}" : ForkReleaseFeed.TagFor(version);
+
+        if (release is not { Draft: false, Assets: { } assets } || release.TagName != tag
+            || release.Prerelease != (_fork?.IsPreview ?? false))
+        {
+            throw new InvalidDataException("The release does not match this update channel. Check for updates again.");
+        }
+
+        var name = ForkReleaseFeed.InstallerName(version);
+        var installer = FindAsset(assets, version, tag, name);
+        var checksum = FindAsset(assets, version, tag, name + ".sha256");
+
+        if (installer.Size is <= 0 or > UpdateInstallation.MaxInstallerSize)
+        {
+            throw new InvalidDataException("The installer size is invalid.");
+        }
+
+        var remote = await RemoteTextFile.GetAsync(
+            http, checksum.Url!, cancellationToken, maxBytes: 512).ConfigureAwait(false);
+        cancellationToken.ThrowIfCancellationRequested();
+
+        var parts = remote.Text.Trim().Split([' ', '\t'], StringSplitOptions.RemoveEmptyEntries);
+
+        if (remote.Outcome != RemoteTextOutcome.Fetched || parts is not [var hash, var file]
+            || file != name || !UpdateInstallation.IsHash(hash)
+            || (installer.Digest is { Length: > 0 } digest
+                && !digest.Equals($"sha256:{hash}", StringComparison.OrdinalIgnoreCase)))
+        {
+            throw new InvalidDataException("The checksum does not match the installer.");
+        }
+
+        return new LauncherReleaseAsset(new Uri(installer.Url!), hash, installer.Size);
+    }
+
+    private GitHubAsset FindAsset(IEnumerable<GitHubAsset> assets, string version, string tag, string name)
+    {
+        var matches = assets.Where(asset => asset.Name == name).ToArray();
+
+        if (matches is not [var asset]
+            || (_fork is null
+                ? asset.Url != $"{OfficialReleasePage}/download/{tag}/{name}"
+                : !ForkReleaseFeed.IsAssetUrl(asset.Url, version, name)))
+        {
+            throw new InvalidDataException($"The release does not contain {name}.");
+        }
+
+        return asset;
+    }
 
     public async Task<UpdateStatus> CheckAsync(bool force = false)
     {
@@ -106,16 +189,14 @@ public sealed class UpdateService(HttpClient http, UpdateStateStore states, ILog
 
     private UpdateStatus Evaluate(string tag, ForkReleaseFeed? fork)
     {
-        if ((fork is null ? ParseVersion(tag) : fork.ParseVersion(tag)) is not { } latest)
+        if ((fork is null ? ParseOfficialVersion(tag) : fork.ParseVersion(tag)) is not { } latest)
         {
             logger.LogWarning("版本号格式不对：{Text}", tag);
 
             return new UpdateStatus(UpdateKind.Failed);
         }
 
-        var current = fork?.ParseVersion(fork.CurrentText)
-            ?? typeof(UpdateService).Assembly.GetName().Version
-            ?? new Version(0, 0, 0);
+        var current = CurrentVersion;
 
         if (latest > current)
         {
@@ -158,7 +239,7 @@ public sealed class UpdateService(HttpClient http, UpdateStateStore states, ILog
     private static string NormalizeTag(string? tag) =>
         (tag ?? "").Trim().TrimStart('\uFEFF').Trim().TrimStart('v', 'V').Trim();
 
-    private static Version? ParseVersion(string text) =>
+    private static Version? ParseOfficialVersion(string text) =>
         text.Split('.') is { Length: 3 } parts
         && parts.All(x => int.TryParse(x, out _))
         && Version.TryParse(text, out var version)
@@ -173,11 +254,38 @@ public sealed class UpdateService(HttpClient http, UpdateStateStore states, ILog
     private string DownloadUrl() =>
         Environment.GetEnvironmentVariable("VRCL_DOWNLOAD_URL") is { Length: > 0 } custom
             ? custom
-            : _fork is null ? DefaultDownloadUrl : ForkReleaseFeed.DownloadPage;
+            : BrowserDownloadUrl;
 
-    private sealed class GitHubRelease
+    private class GitHubRelease
     {
         [JsonPropertyName("tag_name")]
         public string? TagName { get; init; }
+    }
+
+    private sealed class GitHubInstallerRelease : GitHubRelease
+    {
+        [JsonPropertyName("draft")]
+        public bool Draft { get; init; }
+
+        [JsonPropertyName("prerelease")]
+        public bool Prerelease { get; init; }
+
+        [JsonPropertyName("assets")]
+        public GitHubAsset[]? Assets { get; init; }
+    }
+
+    private sealed class GitHubAsset
+    {
+        [JsonPropertyName("name")]
+        public string? Name { get; init; }
+
+        [JsonPropertyName("size")]
+        public long Size { get; init; }
+
+        [JsonPropertyName("browser_download_url")]
+        public string? Url { get; init; }
+
+        [JsonPropertyName("digest")]
+        public string? Digest { get; init; }
     }
 }
