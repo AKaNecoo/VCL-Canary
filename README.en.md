@@ -1,19 +1,19 @@
 ﻿<div align="center">
-  <img src="docs/images/logo.png" alt="VRCLearn Launcher" width="120">
-  <h1>VRCLearn Launcher</h1>
-  <p>A VRChat package and project manager for Windows, built with .NET 10 and WPF.</p>
+  <img src="docs/images/logo.png" alt="VCL Canary" width="120">
+  <h1>VCL Canary</h1>
+  <p>VCL Canary is an independently maintained community fork of <a href="https://github.com/VRLearn-Official/VRCLearn_Launcher">VRCLearn Launcher</a>, originally developed by VRLearn. Canary is a VRChat project and VPM package manager for Windows, built with .NET 10 and WPF.</p>
 
-  [Download](https://github.com/VRLearn-Official/VRCLearn_Launcher/releases) · [简体中文](README.md) · [Issues](https://github.com/VRLearn-Official/VRCLearn_Launcher/issues)
+  [Download](https://github.com/AKaNecoo/VCL-Canary/releases) · [简体中文](README.md) · [Issues](https://github.com/AKaNecoo/VCL-Canary/issues)
 </div>
 
 <p align="center">
-  <a href="https://github.com/VRLearn-Official/VRCLearn_Launcher/actions/workflows/build.yml"><img src="https://github.com/VRLearn-Official/VRCLearn_Launcher/actions/workflows/build.yml/badge.svg" alt="Build"></a>
-  <a href="https://github.com/VRLearn-Official/VRCLearn_Launcher/releases"><img src="https://img.shields.io/github/v/release/VRLearn-Official/VRCLearn_Launcher?display_name=tag&sort=semver" alt="Release"></a>
+  <a href="https://github.com/AKaNecoo/VCL-Canary/actions/workflows/fork-release.yml"><img src="https://github.com/AKaNecoo/VCL-Canary/actions/workflows/fork-release.yml/badge.svg" alt="Build"></a>
+  <a href="https://github.com/AKaNecoo/VCL-Canary/releases"><img src="https://img.shields.io/github/v/release/AKaNecoo/VCL-Canary?display_name=tag&sort=semver" alt="Release"></a>
   <img src="https://img.shields.io/badge/platform-Windows%2010%2B%20x64-0078D4" alt="Platform">
-  <a href="LICENSE"><img src="https://img.shields.io/github/license/VRLearn-Official/VRCLearn_Launcher" alt="License"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/github/license/AKaNecoo/VCL-Canary" alt="License"></a>
 </p>
 
-VRCLearn Launcher manages VPM repositories, packages and Unity projects in one place. It is an independent C#/WPF application, not affiliated with VRChat Inc. or Unity Technologies.
+VCL Canary manages VPM repositories, packages and Unity projects in one place. It is an independent C#/WPF application, not affiliated with VRChat Inc. or Unity Technologies.
 
 > [!WARNING]
 > If you have already built up a large number of existing projects, we do not recommend switching to this tool. Please keep using the official VCC, ALCOM or similar tools.
@@ -30,7 +30,6 @@ VRCLearn Launcher manages VPM repositories, packages and Unity projects in one p
 - **Projects** — list, create, favorite and archive projects; launch Unity with a selected editor version; back up, restore and export
 - **Resources** — manage local unitypackages with covers, tags, search and manuals
 - **Launcher backup** — back up configuration only or everything, restore into a chosen directory
-- **Interface** — lock the sidebar in its expanded state
 - **Templates** — import and create `.vrclearn-template` projects
 - **Plugins** — install `.vclplugin` extensions from local files or by drag-and-drop. Plugins are provided by the community and are not bundled (see [docs/plugins.md](docs/plugins.md))
 - **Desktop integration** — `vcc://` deep links and file associations
@@ -39,7 +38,7 @@ VRCLearn Launcher manages VPM repositories, packages and Unity projects in one p
 
 ## Install
 
-Download `VRCLearnLauncher-<version>-win-x64-Setup.exe` from [Releases](https://github.com/VRLearn-Official/VRCLearn_Launcher/releases) and run it.
+Download `VRCLearnLauncher-<version>-win-x64-Setup.exe` from [Releases](https://github.com/AKaNecoo/VCL-Canary/releases) and run it.
 
 - Windows 10 or later, x64
 - The .NET 10 desktop runtime is bundled; no separate installation is required
@@ -68,7 +67,7 @@ dotnet run --project src/VRCLearn.App/VRCLearn.App.csproj
 
 Published builds target `net10.0-windows` / `win-x64` and are self-contained.
 
-GitHub Actions builds the installer on pushes to `main`, `v*` tags, and manual runs; each run uploads the Setup executable as an artifact. A `v*` tag also creates a draft GitHub Release with the Setup executable and its SHA256 checksum.
+GitHub Actions publishes Alpha from `dev` and Beta from `beta` on push. Stable releases from protected `main` are published manually. The third segment of the Canary release version encodes the upstream patch and a two-digit build number. Build `01` based on `1.34.1` is `1.34.101`.
 
 ## Project layout
 
