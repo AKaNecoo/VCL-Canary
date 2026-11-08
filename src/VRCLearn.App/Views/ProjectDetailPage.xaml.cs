@@ -50,10 +50,35 @@ public partial class ProjectDetailPage : UserControl
     private void OnJumpToInstalledClick(object sender, RoutedEventArgs e) =>
         JumpToSection(InstalledPackagesSection, InstalledPackageSearchBox);
 
-    private async void OnUpgradeAllClick(object sender, RoutedEventArgs e)
+    private void OnBatchMoreClick(object sender, RoutedEventArgs e)
+    {
+        if (sender is FrameworkElement { ContextMenu: { } menu } button)
+        {
+            menu.PlacementTarget = button;
+            menu.IsOpen = true;
+        }
+    }
+
+    private void OnBatchMenuOpened(object sender, RoutedEventArgs e)
+    {
+        PrereleaseUpgradeItem.Visibility = DataContext is ProjectDetailViewModel { ShowPrereleaseUpgrades: true }
+            ? Visibility.Visible
+            : Visibility.Collapsed;
+    }
+
+    private async void OnUpgradeAllClick(object sender, RoutedEventArgs e) =>
+        await ReviewBatchAsync(viewModel => viewModel.PrepareStableUpgradesAsync());
+
+    private async void OnUpgradePrereleaseClick(object sender, RoutedEventArgs e) =>
+        await ReviewBatchAsync(viewModel => viewModel.PreparePrereleaseUpgradesAsync());
+
+    private async void OnReinstallAllClick(object sender, RoutedEventArgs e) =>
+        await ReviewBatchAsync(viewModel => viewModel.PrepareReinstallAllAsync());
+
+    private async Task ReviewBatchAsync(Func<ProjectDetailViewModel, Task<bool>> prepare)
     {
         if (DataContext is ProjectDetailViewModel viewModel
-            && await viewModel.PrepareStableUpgradesAsync()
+            && await prepare(viewModel)
             && IsVisible
             && ReferenceEquals(DataContext, viewModel))
         {

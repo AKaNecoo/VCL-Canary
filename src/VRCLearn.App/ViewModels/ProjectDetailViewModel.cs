@@ -1025,7 +1025,14 @@ public sealed partial class ProjectDetailViewModel(
         return true;
     }
 
-    public async Task<bool> PrepareStableUpgradesAsync()
+    public bool ShowPrereleaseUpgrades => settings.Current.ShowPrereleasePackages;
+
+    public Task<bool> PrepareStableUpgradesAsync() => PrepareUpgradesAsync(allowPrerelease: false);
+
+    public Task<bool> PreparePrereleaseUpgradesAsync() =>
+        ShowPrereleaseUpgrades ? PrepareUpgradesAsync(allowPrerelease: true) : Task.FromResult(false);
+
+    private async Task<bool> PrepareUpgradesAsync(bool allowPrerelease)
     {
         if (_project is not { } current || IsBusy || _switchingVersion
             || _pending is not null || _requestedAdds.Count > 0)
@@ -1057,7 +1064,7 @@ public sealed partial class ProjectDetailViewModel(
                     ? locked.Version
                     : installed.Version;
 
-                if (catalog.NewerThan(name, version, project.UnityVersion, allowPrerelease: false) is { } upgrade)
+                if (catalog.NewerThan(name, version, project.UnityVersion, allowPrerelease) is { } upgrade)
                 {
                     upgrades.Add(upgrade);
                 }
@@ -1065,13 +1072,13 @@ public sealed partial class ProjectDetailViewModel(
 
             if (upgrades.Count == 0)
             {
-                Status = localization["ProjectDetail.Batch.UpToDate"];
+                Status = localization[allowPrerelease ? "ProjectDetail.Batch.UpToDatePrerelease" : "ProjectDetail.Batch.UpToDate"];
                 return false;
             }
 
             var outcome = await PackageOperations.AddAsync(
                 project, catalog, upgrades, AddPackageOperation.UpgradeLocked,
-                allowPrerelease: false, CancellationToken.None);
+                allowPrerelease, CancellationToken.None);
 
             if (generation != _loadGeneration)
             {
@@ -1089,7 +1096,7 @@ public sealed partial class ProjectDetailViewModel(
             var blocked = changes.PackageChanges.Values.OfType<Install>()
                 .Select(change => change.Package)
                 .OfType<PackageInfo>()
-                .Where(package => !package.Version.IsStable
+                .Where(package => (!allowPrerelease && !package.Version.IsStable)
                     || project.GetInstalledPackage(package.Name)?.Version > package.Version
                     || project.GetLocked(package.Name)?.Version > package.Version)
                 .Select(package => package.Name)
@@ -1097,7 +1104,9 @@ public sealed partial class ProjectDetailViewModel(
 
             if (blocked.Count > 0)
             {
-                Status = localization.Format("ProjectDetail.Batch.UpgradeBlocked", Join(blocked));
+                Status = localization.Format(
+                    allowPrerelease ? "ProjectDetail.Batch.PrereleaseUpgradeBlocked" : "ProjectDetail.Batch.UpgradeBlocked",
+                    Join(blocked));
                 return false;
             }
 
@@ -1178,42 +1187,98 @@ public sealed partial class ProjectDetailViewModel(
         }
     }
 
-    private async Task ReinstallPackagesAsync(IReadOnlyList<string> names)
+    public Task<bool> PrepareReinstallAllAsync()
     {
-        if (_project is not { } project || IsBusy)
+        if (_project is null || IsBusy || _switchingVersion || _pending is not null || _requestedAdds.Count > 0)
         {
-            return;
+            return Task.FromResult(false);
         }
 
+        return ReinstallPackagesAsync(names: null);
+    }
+
+    private async Task<bool> ReinstallPackagesAsync(IReadOnlyList<string>? names)
+    {
+        if (_project is not { } project || IsBusy || _switchingVersion)
+        {
+            return false;
+        }
+
+        var generation = _loadGeneration;
+        var reinstallAll = names is null;
+        IsBusy = true;
         Status = null;
 
-        var outcome = await PackageOperations.ReinstallAsync(project, Catalog(), names, CancellationToken.None);
-        if (IsBusy || !ReferenceEquals(_project, project))
+        try
         {
-            return;
-        }
-
-        if (outcome.Status != ReinstallStatus.Success)
-        {
-            logger.LogWarning(
-                "重装包失败：{Project} {Package} {Status}",
-                ProjectPath,
-                Join(names),
-                outcome.Status);
-
-            if (outcome.Status == ReinstallStatus.NotInstalled)
+            var fingerprint = await FingerprintAsync(project);
+            if (reinstallAll)
             {
-                Status = localization.Format("ProjectDetail.NotInstalled", Join(outcome.NotInstalled));
-            }
-            else
-            {
-                ReportMissingDependencies(outcome.MissingDependencies);
+                project = await projects.OpenAsync(ProjectPath, CancellationToken.None);
+                if (generation != _loadGeneration)
+                {
+                    return false;
+                }
             }
 
-            return;
-        }
+            var catalog = Catalog();
+            names ??= project.InstalledPackages
+                .Select(pair => pair.Key)
+                .Where(catalog.HasName)
+                .ToList();
 
-        await SetPendingAsync(outcome.Changes!);
+            if (names.Count == 0)
+            {
+                Status = localization["ProjectDetail.Batch.NoPackagesToReinstall"];
+                return false;
+            }
+
+            var outcome = await PackageOperations.ReinstallAsync(project, catalog, names, CancellationToken.None);
+            if (generation != _loadGeneration)
+            {
+                return false;
+            }
+
+            if (outcome.Status != ReinstallStatus.Success)
+            {
+                logger.LogWarning(
+                    "重装包失败：{Project} {Package} {Status}",
+                    ProjectPath,
+                    Join(names),
+                    outcome.Status);
+
+                if (outcome.Status == ReinstallStatus.NotInstalled)
+                {
+                    Status = localization.Format("ProjectDetail.NotInstalled", Join(outcome.NotInstalled));
+                }
+                else
+                {
+                    ReportMissingDependencies(outcome.MissingDependencies);
+                }
+
+                return false;
+            }
+
+            _project = project;
+            await SetPendingAsync(outcome.Changes!, fingerprint: fingerprint);
+            return true;
+        }
+        catch (Exception exception) when (exception is not OperationCanceledException)
+        {
+            if (generation == _loadGeneration)
+            {
+                Report(exception);
+            }
+
+            return false;
+        }
+        finally
+        {
+            if (generation == _loadGeneration)
+            {
+                IsBusy = false;
+            }
+        }
     }
 
     [RelayCommand]
