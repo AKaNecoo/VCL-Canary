@@ -491,27 +491,6 @@
                                 FontWeight="SemiBold"
                                 Text="{markup:Tr ProjectDetail.Batch.Title}" />
                             <ui:Button
-                                x:Name="BatchMoreButton"
-                                Style="{StaticResource BatchPlanButton}"
-                                Appearance="Secondary"
-                                AutomationProperties.Name="{markup:Tr ProjectDetail.Batch.More}"
-                                Click="OnBatchMoreClick"
-                                Icon="{ui:SymbolIcon MoreHorizontal24}"
-                                ToolTip="{markup:Tr ProjectDetail.Batch.More}">
-                                <ui:Button.ContextMenu>
-                                    <ContextMenu Placement="Bottom" Opened="OnBatchMenuOpened">
-                                        <MenuItem
-                                            x:Name="PrereleaseUpgradeItem"
-                                            Click="OnUpgradePrereleaseClick"
-                                            Header="{markup:Tr ProjectDetail.Batch.UpgradePrerelease}"
-                                            Visibility="Collapsed" />
-                                        <MenuItem
-                                            Click="OnReinstallAllClick"
-                                            Header="{markup:Tr ProjectDetail.Batch.ReinstallAll}" />
-                                    </ContextMenu>
-                                </ui:Button.ContextMenu>
-                            </ui:Button>
-                            <ui:Button
                                 Style="{StaticResource BatchPlanButton}"
                                 Appearance="Secondary"
                                 Click="OnUpgradeAllClick"
@@ -526,11 +505,34 @@
                                 Appearance="Secondary"
                                 Command="{Binding RemoveSelectedCommand}"
                                 Content="{markup:Tr ProjectDetail.Batch.Remove}" />
-                            <ui:Button
-                                Style="{StaticResource RowButton}"
-                                Appearance="Secondary"
-                                Command="{Binding ClearSelectionCommand}"
-                                Content="{markup:Tr ProjectDetail.Batch.Clear}" />
+                            <StackPanel Orientation="Horizontal">
+                                <ui:Button
+                                    Style="{StaticResource RowButton}"
+                                    Appearance="Secondary"
+                                    Command="{Binding ClearSelectionCommand}"
+                                    Content="{markup:Tr ProjectDetail.Batch.Clear}" />
+                                <ui:Button
+                                    x:Name="BatchMoreButton"
+                                    Style="{StaticResource BatchPlanButton}"
+                                    Appearance="Secondary"
+                                    AutomationProperties.Name="{markup:Tr ProjectDetail.Batch.More}"
+                                    Click="OnBatchMoreClick"
+                                    Icon="{ui:SymbolIcon MoreHorizontal24}"
+                                    ToolTip="{markup:Tr ProjectDetail.Batch.More}">
+                                    <ui:Button.ContextMenu>
+                                        <ContextMenu Placement="Bottom" Opened="OnBatchMenuOpened">
+                                            <MenuItem
+                                                x:Name="PrereleaseUpgradeItem"
+                                                Click="OnUpgradePrereleaseClick"
+                                                Header="{markup:Tr ProjectDetail.Batch.UpgradePrerelease}"
+                                                Visibility="Collapsed" />
+                                            <MenuItem
+                                                Click="OnReinstallAllClick"
+                                                Header="{markup:Tr ProjectDetail.Batch.ReinstallAll}" />
+                                        </ContextMenu>
+                                    </ui:Button.ContextMenu>
+                                </ui:Button>
+                            </StackPanel>
                         </WrapPanel>
                     </ui:Card>
 
