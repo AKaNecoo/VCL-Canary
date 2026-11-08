@@ -2,6 +2,7 @@ using System.ComponentModel;
 using System.IO;
 using System.Net.Http;
 using System.Text.Json;
+using System.Windows;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Microsoft.Extensions.Logging;
@@ -41,6 +42,7 @@ public sealed partial class UpdateViewModel : ObservableObject
     private readonly GuiConfigStore _configs;
     private readonly MutableProxy _proxy;
     private readonly LocalizationService _localization;
+    private readonly ProgressService _progress;
     private readonly ILogger<UpdateViewModel> _logger;
     private readonly bool _canInstall;
     private readonly TransientAction _expiry;
@@ -57,6 +59,7 @@ public sealed partial class UpdateViewModel : ObservableObject
         GuiConfigStore configs,
         MutableProxy proxy,
         LocalizationService localization,
+        ProgressService progress,
         ILogger<UpdateViewModel> logger)
     {
         _service = service;
@@ -64,6 +67,7 @@ public sealed partial class UpdateViewModel : ObservableObject
         _configs = configs;
         _proxy = proxy;
         _localization = localization;
+        _progress = progress;
         _logger = logger;
         UpdateChannels =
         [
@@ -89,6 +93,15 @@ public sealed partial class UpdateViewModel : ObservableObject
             RefreshUpdateRoute();
         };
         _proxy.AvailabilityChanged += (_, _) => RefreshUpdateRoute();
+        _progress.PropertyChanged += (_, args) =>
+        {
+            if (args.PropertyName == nameof(ProgressService.IsRunning))
+            {
+                OnPropertyChanged(nameof(CanSelectUpdateChannel));
+                ActCommand.NotifyCanExecuteChanged();
+                InstallNowCommand.NotifyCanExecuteChanged();
+            }
+        };
         _configs.Changed += (_, _) =>
         {
             OnPropertyChanged(nameof(AutoUpdateEnabled));
@@ -101,7 +114,7 @@ public sealed partial class UpdateViewModel : ObservableObject
 
     public bool HasUpdateChannels => _service.IsForkBuild;
 
-    public bool CanSelectUpdateChannel => !_checking && !IsDownloading;
+    public bool CanSelectUpdateChannel => !_checking && !IsDownloading && !_progress.IsRunning;
 
     public IReadOnlyList<Option> UpdateChannels { get; }
 
@@ -149,7 +162,7 @@ public sealed partial class UpdateViewModel : ObservableObject
         get => _canInstall && !_service.UsesOfficialDownloadPage && _configs.Current.LauncherAutoUpdate;
         set
         {
-            if (!CanAutoUpdate || value == AutoUpdateEnabled)
+            if (!CanAutoUpdate || _progress.IsRunning || value == AutoUpdateEnabled)
             {
                 return;
             }
@@ -198,6 +211,8 @@ public sealed partial class UpdateViewModel : ObservableObject
 
     public bool IsDownloading => Phase == UpdatePhase.Downloading;
 
+    public bool ShowInstallNow => _canInstall && Phase == UpdatePhase.Pending && !_service.UsesOfficialDownloadPage;
+
     public string ButtonText => Phase switch
     {
         _ when _service.UsesOfficialDownloadPage => _localization["Settings.Update.Stage"],
@@ -242,6 +257,8 @@ public sealed partial class UpdateViewModel : ObservableObject
         OnPropertyChanged(nameof(ButtonText));
         OnPropertyChanged(nameof(StatusText));
         OnPropertyChanged(nameof(HasStatus));
+        OnPropertyChanged(nameof(ShowInstallNow));
+        InstallNowCommand.NotifyCanExecuteChanged();
     }
 
     private bool ShouldUseDownloadPage()
@@ -298,11 +315,40 @@ public sealed partial class UpdateViewModel : ObservableObject
         return CheckAsync(force: false);
     }
 
-    private bool CanAct() => (_useDownloadPage || !_checking) && !IsDownloading;
+    private bool CanInstallNow() => ShowInstallNow && !_progress.IsRunning;
+
+    [RelayCommand(CanExecute = nameof(CanInstallNow))]
+    private async Task InstallNow()
+    {
+        if (!CanInstallNow())
+        {
+            return;
+        }
+
+        var started = await _progress.RunAsync(
+            _localization["Settings.Update.PrepareInstall"],
+            _ => Task.Run(_updater.TryStartInstallNow));
+
+        if (started)
+        {
+            Application.Current.Shutdown();
+        }
+        else
+        {
+            Phase = UpdatePhase.InstallFailed;
+        }
+    }
+
+    private bool CanAct() => (_useDownloadPage || !_checking) && !IsDownloading && !_progress.IsRunning;
 
     [RelayCommand(CanExecute = nameof(CanAct))]
     private async Task Act()
     {
+        if (!CanAct())
+        {
+            return;
+        }
+
         if (_service.UsesOfficialDownloadPage
             || (_useDownloadPage && Phase is not (UpdatePhase.Pending or UpdatePhase.DownloadFailed)))
         {

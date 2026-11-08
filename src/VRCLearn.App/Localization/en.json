@@ -631,6 +631,8 @@
   "Settings.Update.StageHint": "Download v{0} to install the next time you open the launcher.",
   "Settings.Update.Downloading": "Downloading… {0}%",
   "Settings.Update.Pending": "v{0} is ready to install the next time you open the launcher.",
+  "Settings.Update.InstallNow": "Update now",
+  "Settings.Update.PrepareInstall": "Preparing to install the update…",
   "Settings.Update.CancelPending": "Cancel update",
   "Settings.Update.CancelDownload": "Cancel download",
   "Settings.Update.DownloadFailed": "Download or verification failed. You can download the update from GitHub.",

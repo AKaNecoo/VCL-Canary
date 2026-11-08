@@ -587,7 +587,15 @@
                                 </Grid>
                             </StackPanel>
                         </HeaderedContentControl.Header>
-                        <StackPanel Margin="{StaticResource Gap.Inline}">
+                        <StackPanel Margin="{StaticResource Gap.Inline}" Orientation="Horizontal">
+                            <ui:Button
+                                x:Name="InstallNowButton"
+                                MinWidth="120"
+                                Margin="0,0,8,0"
+                                Appearance="Primary"
+                                Command="{Binding Update.InstallNowCommand}"
+                                Content="{markup:Tr Settings.Update.InstallNow}"
+                                Visibility="{Binding Update.ShowInstallNow, Converter={StaticResource BooleanToVisibilityConverter}}" />
                             <ui:Button
                                 x:Name="UpdateButton"
                                 MinWidth="120"

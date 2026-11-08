@@ -631,6 +631,8 @@
   "Settings.Update.StageHint": "v{0} をダウンロードし、次回起動時にインストールします。",
   "Settings.Update.Downloading": "ダウンロード中… {0}%",
   "Settings.Update.Pending": "v{0} をダウンロードしました。次回起動時にインストールします。",
+  "Settings.Update.InstallNow": "今すぐ更新",
+  "Settings.Update.PrepareInstall": "更新のインストールを準備しています…",
   "Settings.Update.CancelPending": "更新を取り消す",
   "Settings.Update.CancelDownload": "ダウンロードを中止",
   "Settings.Update.DownloadFailed": "ダウンロードまたは検証に失敗しました。GitHub から手動でダウンロードできます。",
