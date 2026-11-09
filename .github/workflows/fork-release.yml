@@ -185,7 +185,7 @@ jobs:
 
           $exe = Join-Path 'artifacts/releases' $env:SETUP_ASSET
           $setupVersion = [Diagnostics.FileVersionInfo]::GetVersionInfo((Resolve-Path -LiteralPath $exe).Path)
-          if ($setupVersion.ProductVersion -ne $env:CANARY_PRODUCT_VERSION) {
+          if (([string]$setupVersion.ProductVersion).TrimEnd() -ne $env:CANARY_PRODUCT_VERSION) {
             throw "Unexpected installer product version: $($setupVersion.ProductVersion)."
           }
           $hash = (Get-FileHash -LiteralPath $exe -Algorithm SHA256).Hash.ToLowerInvariant()
