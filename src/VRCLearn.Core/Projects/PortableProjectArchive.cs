@@ -70,6 +70,7 @@ public sealed class PortableProjectArchive
         var dependencies = Dependencies(manifest, UpmManifest.RelativePath);
         var lockFile = ReadJson(LockPath);
         var locked = Dependencies(lockFile, LockPath);
+        var packages = Path.Combine(root, UnityProject.PackagesDirectory);
         var roots = _io.ListEntries("").Select(x => x.Name).ToHashSet(StringComparer.OrdinalIgnoreCase);
         var bundle = "VCLLocalPackages";
         for (var suffix = 2; roots.Contains(bundle); suffix++)
@@ -88,7 +89,6 @@ public sealed class PortableProjectArchive
             }
 
             directLocal.Add(name);
-            var packages = Path.Combine(root, UnityProject.PackagesDirectory);
             var source = ResolveLocalPath(reference, packages);
             var target = AddPackage(name, source, root, backupDirectory, bundle);
             var replacement = LocalPrefix + Path.GetRelativePath(
@@ -99,7 +99,7 @@ public sealed class PortableProjectArchive
                 changed = true;
             }
 
-            if (locked[name] is JsonObject entry && LocalReference(entry["version"]) is { } old
+            if (locked[name] is JsonObject entry && !IsEmbedded(entry) && LocalReference(entry["version"]) is { } old
                 && old != replacement)
             {
                 entry["version"] = replacement;
@@ -109,7 +109,21 @@ public sealed class PortableProjectArchive
 
         foreach (var (name, value) in locked)
         {
-            if (value is JsonObject entry && LocalReference(entry["version"]) is not null && !directLocal.Contains(name))
+            if (value is not JsonObject entry || LocalReference(entry["version"]) is not { } reference)
+            {
+                continue;
+            }
+
+            if (IsEmbedded(entry))
+            {
+                var relativeReference = VerifyEmbeddedPackage(name, reference, packages);
+                if (reference != relativeReference)
+                {
+                    entry["version"] = relativeReference;
+                    lockChanged = true;
+                }
+            }
+            else if (!directLocal.Contains(name))
             {
                 throw new InvalidDataException($"{LockPath}: {name} has a local reference absent from {UpmManifest.RelativePath}.");
             }
@@ -125,6 +139,26 @@ public sealed class PortableProjectArchive
             _replacements.Add(LockPath, JsonSerializer.SerializeToUtf8Bytes(lockFile, JsonDefaults.Indented));
         }
     }
+
+    private string VerifyEmbeddedPackage(string name, string reference, string packages)
+    {
+        var source = ResolveLocalPath(reference, packages);
+        var folder = Path.GetFileName(source);
+        var destination = $"{UnityProject.PackagesDirectory}/{folder}";
+        if (Path.GetDirectoryName(source) is not { } parent || !PathUtil.SamePath(parent, packages)
+            || !_files.ContainsKey($"{destination}/package.json"))
+        {
+            throw new InvalidDataException($"{LockPath}: embedded package {name} is not included at {source}.");
+        }
+
+        EnsureUnlinked(source);
+        ReadPackageManifest(name, source, directory: true);
+        AddPackageDirectory(source, destination, included: true);
+        return LocalPrefix + folder;
+    }
+
+    private static bool IsEmbedded(JsonObject entry) =>
+        entry["source"] is JsonValue source && source.TryGetValue<string>(out var value) && value == "embedded";
 
     private string AddPackage(string name, string source, string root, string backupDirectory, string bundle)
     {
