@@ -1,4 +1,4 @@
-﻿<div align="center">
+<div align="center">
   <img src="docs/images/logo.png" alt="VCL Canary" width="120">
   <h1>VCL Canary</h1>
   <p>VCL Canary is an independently maintained community fork of <a href="https://github.com/VRLearn-Official/VRCLearn_Launcher">VRCLearn Launcher</a>, originally developed by VRLearn. VCL Canary is a VRChat project and VPM package manager for Windows, built with .NET 10 and WPF.</p>
@@ -33,7 +33,7 @@ VCL Canary manages VPM repositories, packages and Unity projects in one place. I
 - **Templates** — import and create `.vrclearn-template` projects
 - **Plugins** — install `.vclplugin` extensions from local files or by drag-and-drop. Plugins are provided by the community and are not bundled (see [docs/plugins.md](docs/plugins.md))
 - **Desktop integration** — `vcc://` deep links and file associations
-- **Update check** — checks the latest GitHub release at most once a day at startup and links to the download page
+- **Launcher updates** — check the selected channel and download or install updates in the app. See [Updating](#updating).
 - **Localization** — Simplified Chinese, English, and Japanese, with custom language packs
 
 ## Install
@@ -44,6 +44,14 @@ Download `VRCLearnLauncher-<version>-win-x64-Setup.exe` from [Releases](https://
 - The .NET 10 desktop runtime is bundled; no separate installation is required
 
 The installer is not code-signed yet, so Windows SmartScreen may warn on first run. Choose "More info" and then "Run anyway".
+
+## Updating
+
+Open **Settings → About** to check for updates or choose an update channel. The automatic check at startup can reuse a successful result from the past 24 hours. A manual check looks again immediately.
+
+- **Channels.** Stable receives stable releases, Beta receives beta and stable releases, and Alpha receives releases from all three channels. The launcher only offers versions newer than the one installed.
+- **In-app installation.** With **Automatic updates** enabled, eligible releases download automatically and install the next time the launcher opens. Once downloaded, you can also select **Update now**.
+- **Browser downloads.** When **Official** is selected, **Download update** opens the official download page. With a Chinese display language and no proxy configured in the app, the button opens the VCL Canary releases page. If in-app download or verification fails, select **Download manually** to open that version’s GitHub release.
 
 ## Build
 
