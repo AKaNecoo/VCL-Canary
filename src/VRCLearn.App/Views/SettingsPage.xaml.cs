@@ -103,7 +103,7 @@ public partial class SettingsPage : UserControl
             ? onAccentBrush.Color
             : _idleForeground;
 
-        var lit = viewModel.Update.Phase is not UpdatePhase.Idle;
+        var lit = viewModel.Update.Phase is not (UpdatePhase.Idle or UpdatePhase.Pending);
 
         UpdateButton.Appearance = lit
             ? Wpf.Ui.Controls.ControlAppearance.Primary

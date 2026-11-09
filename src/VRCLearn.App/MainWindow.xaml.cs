@@ -26,6 +26,7 @@ public partial class MainWindow : FluentWindow
     private readonly AnimationService _animations;
     private readonly DropImportService _drops;
     private readonly ILogger<MainWindow> _logger;
+    private LegacyInstallerWindow? _legacyInstallerWindow;
 
     private string[]? _lastDropPaths;
     private bool _lastDropValid;
@@ -142,7 +143,6 @@ public partial class MainWindow : FluentWindow
 
         if (_shown)
         {
-            target.UpdateLayout();
             PlayPageTransition(target);
         }
     }
@@ -252,6 +252,12 @@ public partial class MainWindow : FluentWindow
 
     private void OnCloseClick(object sender, RoutedEventArgs e) => Close();
 
+    protected override void OnSourceInitialized(EventArgs e)
+    {
+        base.OnSourceInitialized(e);
+        _legacyInstallerWindow = new LegacyInstallerWindow(Close);
+    }
+
     protected override void OnClosing(CancelEventArgs e)
     {
         base.OnClosing(e);
@@ -260,6 +266,12 @@ public partial class MainWindow : FluentWindow
         {
             e.Cancel = true;
         }
+    }
+
+    protected override void OnClosed(EventArgs e)
+    {
+        _legacyInstallerWindow?.Dispose();
+        base.OnClosed(e);
     }
 
     private bool IsDropAllowed =>

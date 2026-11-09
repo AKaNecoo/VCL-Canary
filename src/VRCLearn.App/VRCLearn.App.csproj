@@ -12,6 +12,11 @@
     <SatelliteResourceLanguages>en</SatelliteResourceLanguages>
   </PropertyGroup>
 
+  <PropertyGroup Condition="'$(VclCanaryProductVersion)' != ''">
+    <FileVersion>$(VclCanaryProductVersion)</FileVersion>
+    <InformationalVersion>$(VclCanaryProductVersion)</InformationalVersion>
+  </PropertyGroup>
+
   <ItemGroup>
     <ApplicationDefinition Remove="App.xaml" />
     <Page Include="App.xaml" />

@@ -1,9 +1,9 @@
 ﻿<div align="center">
   <img src="docs/images/logo.png" alt="VCL Canary" width="120">
   <h1>VCL Canary</h1>
-  <p>VCL Canary is an independently maintained community fork of <a href="https://github.com/VRLearn-Official/VRCLearn_Launcher">VRCLearn Launcher</a>, originally developed by VRLearn. Canary is a VRChat project and VPM package manager for Windows, built with .NET 10 and WPF.</p>
+  <p>VCL Canary is an independently maintained community fork of <a href="https://github.com/VRLearn-Official/VRCLearn_Launcher">VRCLearn Launcher</a>, originally developed by VRLearn. VCL Canary is a VRChat project and VPM package manager for Windows, built with .NET 10 and WPF.</p>
 
-  [Download](https://github.com/AKaNecoo/VCL-Canary/releases) · [简体中文](README.md) · [Issues](https://github.com/AKaNecoo/VCL-Canary/issues)
+  [Download](https://github.com/AKaNecoo/VCL-Canary/releases) · [简体中文](README.md) · [日本語](README.ja.md) · [Issues](https://github.com/AKaNecoo/VCL-Canary/issues)
 </div>
 
 <p align="center">
@@ -34,7 +34,7 @@ VCL Canary manages VPM repositories, packages and Unity projects in one place. I
 - **Plugins** — install `.vclplugin` extensions from local files or by drag-and-drop. Plugins are provided by the community and are not bundled (see [docs/plugins.md](docs/plugins.md))
 - **Desktop integration** — `vcc://` deep links and file associations
 - **Update check** — checks the latest GitHub release at most once a day at startup and links to the download page
-- **Localization** — Chinese and English, with custom language packs
+- **Localization** — Simplified Chinese, English, and Japanese, with custom language packs
 
 ## Install
 
@@ -67,7 +67,9 @@ dotnet run --project src/VRCLearn.App/VRCLearn.App.csproj
 
 Published builds target `net10.0-windows` / `win-x64` and are self-contained.
 
-GitHub Actions publishes Alpha from `dev` and Beta from `beta` on push. Stable releases from protected `main` are published manually. Canary keeps the upstream major and minor numbers and assigns a patch range to each build series. The `1.35` series starts at `1.35.101`, with build `02` at `1.35.102`.
+GitHub Actions publishes Alpha from `dev` and Beta from `beta` on push. Stable releases from protected `main` are published manually. VCL Canary keeps the upstream major and minor numbers. Alpha, Beta, and stable share one increasing patch sequence. The product version has three parts, such as `1.35.109`. Release tags and installer filenames use names such as `1.35.109-alpha`, `1.35.110`, and `1.35.111-beta`.
+
+If you have an older VCL Canary build with a tag such as `1.35.108-alpha.8`, download the new installer and run it over your existing installation once. In-app updates are available after that upgrade.
 
 ## Project layout
 

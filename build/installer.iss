@@ -1,5 +1,5 @@
 ﻿#define MyAppName "VCL Canary"
-#define MyLauncherWindowName "VRCLearn Launcher"
+#define MyLegacyName "VRCLearn Launcher"
 #define MyAppExeName "VRCLearnLauncher.exe"
 #define MyAppMutex "VRCLearnLauncher.SingleInstance"
 
@@ -19,7 +19,8 @@ AppPublisher=AKaNecoo
 AppPublisherURL=https://github.com/AKaNecoo/VCL-Canary
 AppSupportURL=https://github.com/AKaNecoo/VCL-Canary/issues/
 DefaultDirName={localappdata}\Programs\VRCLearnLauncher
-DefaultGroupName={#MyLauncherWindowName}
+DefaultGroupName={#MyAppName}
+UsePreviousGroup=no
 DisableProgramGroupPage=yes
 PrivilegesRequired=lowest
 OutputDir=..\artifacts\releases
@@ -31,6 +32,7 @@ ArchitecturesAllowed=x64compatible
 ArchitecturesInstallIn64BitMode=x64compatible
 CloseApplications=yes
 RestartApplications=no
+SetupIconFile=..\src\VRCLearn.App\Assets\app.ico
 UninstallDisplayIcon={app}\{#MyAppExeName}
 VersionInfoVersion={#MyAppFileVersion}
 VersionInfoProductName={#MyAppName}
@@ -41,19 +43,21 @@ Name: "chinesesimplified"; MessagesFile: "languages\ChineseSimplified.isl"
 Name: "english"; MessagesFile: "compiler:Default.isl"
 
 [CustomMessages]
-english.CloseLauncher=VRCLearn Launcher is running. Close it before continuing.
-chinesesimplified.CloseLauncher=VRCLearn Launcher 正在运行，请先关闭后再继续。
+english.CloseLauncher=The launcher is running. Close it before continuing.
+chinesesimplified.CloseLauncher=启动器正在运行，请先关闭后再继续。
 
-english.ConfirmCloseLauncher=VRCLearn Launcher is running. Close it and continue?
-chinesesimplified.ConfirmCloseLauncher=VRCLearn Launcher 正在运行。关闭后继续吗？
-english.CloseLauncherFailed=VRCLearn Launcher did not close. Close it manually before continuing.
-chinesesimplified.CloseLauncherFailed=未能自动关闭 VRCLearn Launcher，请手动关闭后再继续。
+english.ConfirmCloseLauncher=The launcher is running. Close it and continue?
+chinesesimplified.ConfirmCloseLauncher=启动器正在运行。关闭后继续吗？
+english.CloseLauncherFailed=The launcher did not close. Close it manually before continuing.
+chinesesimplified.CloseLauncherFailed=未能自动关闭启动器，请手动关闭后再继续。
 
 [Tasks]
 Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm:AdditionalIcons}"
 
 [InstallDelete]
 Type: filesandordirs; Name: "{app}\*"
+Type: files; Name: "{autodesktop}\{#MyLegacyName}.lnk"; Check: IsLegacyLauncherShortcut('{autodesktop}\{#MyLegacyName}.lnk')
+Type: files; Name: "{autoprograms}\{#MyLegacyName}\{#MyLegacyName}.lnk"; Check: IsLegacyLauncherShortcut('{autoprograms}\{#MyLegacyName}\{#MyLegacyName}.lnk')
 
 [Files]
 Source: "..\artifacts\publish\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
@@ -62,8 +66,8 @@ Source: "..\artifacts\publish\*"; DestDir: "{app}"; Flags: ignoreversion recurse
 Type: filesandordirs; Name: "{app}\Plugins"
 
 [Icons]
-Name: "{group}\{#MyLauncherWindowName}"; Filename: "{app}\{#MyAppExeName}"
-Name: "{autodesktop}\{#MyLauncherWindowName}"; Filename: "{app}\{#MyAppExeName}"; Tasks: desktopicon
+Name: "{group}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"
+Name: "{autodesktop}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; Tasks: desktopicon
 
 [Run]
 Filename: "{app}\{#MyAppExeName}"; Description: "{cm:LaunchProgram,{#MyAppName}}"; Flags: nowait postinstall skipifsilent
@@ -102,6 +106,25 @@ begin
     SetLength(Result, Size);
 end;
 
+function IsLegacyLauncherShortcut(LinkPath: String): Boolean;
+var
+  Shell, Shortcut: Variant;
+  Target: String;
+begin
+  Result := False;
+  LinkPath := ExpandConstant(LinkPath);
+  if not FileExists(LinkPath) then
+    Exit;
+  try
+    Shell := CreateOleObject('WScript.Shell');
+    Shortcut := Shell.CreateShortcut(LinkPath);
+    Target := Shortcut.TargetPath;
+    Result := CompareText(QueryLongPath(Target), QueryLongPath(ExpandConstant('{app}\{#MyAppExeName}'))) = 0;
+  except
+    Log('Could not read the existing launcher shortcut: ' + LinkPath);
+  end;
+end;
+
 function RequestLauncherClose(): Boolean;
 var
   Window: HWND;
@@ -113,7 +136,7 @@ begin
   if Result then
     Exit;
 
-  Window := FindWindowByWindowName('{#MyLauncherWindowName}');
+  Window := FindWindowByWindowName('{#MyLegacyName}');
   if (Window = 0) or (GetWindowProcessId(Window, ProcessId) = 0) then
     Exit;
 
@@ -134,7 +157,7 @@ begin
     if (GetWindowProcessId(Window, CurrentProcessId) = 0) or (CurrentProcessId <> ProcessId) then
       Exit;
 
-    Log('Requesting graceful shutdown of VRCLearn Launcher.');
+    Log('Requesting graceful shutdown of the launcher.');
     if PostMessage(Window, CloseWindowMessage, 0, 0) then
       Result := WaitForLauncherExit(Process, LauncherExitTimeoutMs) = ProcessExited;
   finally
@@ -155,7 +178,7 @@ begin
 
   if not Result then
   begin
-    Log('VRCLearn Launcher could not be closed automatically.');
+    Log('The launcher could not be closed automatically.');
     SuppressibleMsgBox(CustomMessage('CloseLauncherFailed'), mbError, MB_OK, IDOK);
   end;
 end;
@@ -172,7 +195,7 @@ begin
   Result := '';
   if CheckForMutexes('{#MyAppMutex}') then
   begin
-    Log('VRCLearn Launcher is still running.');
+    Log('The launcher is still running.');
     Result := CustomMessage('CloseLauncher');
   end;
 end;

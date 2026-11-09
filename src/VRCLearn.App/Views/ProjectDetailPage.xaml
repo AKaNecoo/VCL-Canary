@@ -8,6 +8,20 @@
     xmlns:views="clr-namespace:VRCLearn.App.Views">
 
     <UserControl.Resources>
+        <Style x:Key="BatchPlanButton" BasedOn="{StaticResource RowButton}" TargetType="ui:Button">
+            <Style.Triggers>
+                <DataTrigger Binding="{Binding IsBusy}" Value="True">
+                    <Setter Property="IsEnabled" Value="False" />
+                </DataTrigger>
+                <DataTrigger Binding="{Binding HasPendingChanges}" Value="True">
+                    <Setter Property="IsEnabled" Value="False" />
+                </DataTrigger>
+                <DataTrigger Binding="{Binding Installed.Count}" Value="0">
+                    <Setter Property="IsEnabled" Value="False" />
+                </DataTrigger>
+            </Style.Triggers>
+        </Style>
+
         <DataTemplate DataType="{x:Type viewModels:InstalledPackageViewModel}">
             <ui:Card Style="{StaticResource RowCard}">
                 <Grid>
@@ -144,7 +158,7 @@
         </ItemsControl.ItemsPanel>
         <ItemsControl.ItemsSource>
             <CompositeCollection>
-                <StackPanel>
+                <StackPanel x:Name="ProjectActionsSection">
                     <WrapPanel Margin="{StaticResource Gap.Field}">
                         <ui:Button
                             Margin="0,0,4,8"
@@ -384,8 +398,14 @@
                         </StackPanel>
                     </StackPanel>
 
-                    <StackPanel Visibility="{Binding HasPendingChanges, Converter={StaticResource BooleanToVisibilityConverter}}">
-                            <TextBlock Style="{StaticResource SectionTitle}" Text="{markup:Tr ProjectDetail.Review}" />
+                    <StackPanel
+                        x:Name="PendingChangesSection"
+                        Visibility="{Binding HasPendingChanges, Converter={StaticResource BooleanToVisibilityConverter}}">
+                            <TextBlock
+                                x:Name="PendingChangesTitle"
+                                Focusable="True"
+                                Style="{StaticResource SectionTitle}"
+                                Text="{markup:Tr ProjectDetail.Review}" />
 
                             <ItemsControl Margin="{StaticResource Gap.Row}" ItemsSource="{Binding PendingChanges}">
                                 <ItemsControl.ItemTemplate>
@@ -464,12 +484,17 @@
                     </Grid>
 
                     <ui:Card Margin="0,10,0,0" Padding="16,10">
-                        <StackPanel Orientation="Horizontal">
+                        <WrapPanel>
                             <TextBlock
                                 Margin="0,0,12,0"
                                 VerticalAlignment="Center"
                                 FontWeight="SemiBold"
                                 Text="{markup:Tr ProjectDetail.Batch.Title}" />
+                            <ui:Button
+                                Style="{StaticResource BatchPlanButton}"
+                                Appearance="Secondary"
+                                Click="OnUpgradeAllClick"
+                                Content="{markup:Tr ProjectDetail.Batch.UpgradeAll}" />
                             <ui:Button
                                 Style="{StaticResource RowButton}"
                                 Appearance="Secondary"
@@ -480,12 +505,35 @@
                                 Appearance="Secondary"
                                 Command="{Binding RemoveSelectedCommand}"
                                 Content="{markup:Tr ProjectDetail.Batch.Remove}" />
-                            <ui:Button
-                                Style="{StaticResource RowButton}"
-                                Appearance="Secondary"
-                                Command="{Binding ClearSelectionCommand}"
-                                Content="{markup:Tr ProjectDetail.Batch.Clear}" />
-                        </StackPanel>
+                            <StackPanel Orientation="Horizontal">
+                                <ui:Button
+                                    Style="{StaticResource RowButton}"
+                                    Appearance="Secondary"
+                                    Command="{Binding ClearSelectionCommand}"
+                                    Content="{markup:Tr ProjectDetail.Batch.Clear}" />
+                                <ui:Button
+                                    x:Name="BatchMoreButton"
+                                    Style="{StaticResource BatchPlanButton}"
+                                    Appearance="Secondary"
+                                    AutomationProperties.Name="{markup:Tr ProjectDetail.Batch.More}"
+                                    Click="OnBatchMoreClick"
+                                    Icon="{ui:SymbolIcon MoreHorizontal24}"
+                                    ToolTip="{markup:Tr ProjectDetail.Batch.More}">
+                                    <ui:Button.ContextMenu>
+                                        <ContextMenu Placement="Bottom" Opened="OnBatchMenuOpened">
+                                            <MenuItem
+                                                x:Name="PrereleaseUpgradeItem"
+                                                Click="OnUpgradePrereleaseClick"
+                                                Header="{markup:Tr ProjectDetail.Batch.UpgradePrerelease}"
+                                                Visibility="Collapsed" />
+                                            <MenuItem
+                                                Click="OnReinstallAllClick"
+                                                Header="{markup:Tr ProjectDetail.Batch.ReinstallAll}" />
+                                        </ContextMenu>
+                                    </ui:Button.ContextMenu>
+                                </ui:Button>
+                            </StackPanel>
+                        </WrapPanel>
                     </ui:Card>
 
                     <ui:TextBox

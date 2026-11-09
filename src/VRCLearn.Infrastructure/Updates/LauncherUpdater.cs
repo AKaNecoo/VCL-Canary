@@ -86,16 +86,27 @@ public sealed class LauncherUpdater(
         TryDelete(InstallerPath);
     }
 
-    public bool TryStartInstall(IReadOnlyList<string> arguments, bool automaticUpdatesEnabled)
+    // Deep links, restart commands and isolated test sessions keep their usual startup behavior.
+    public bool TryStartInstall(IReadOnlyList<string> arguments, bool automaticUpdatesEnabled) =>
+        arguments.Count == 0 && TryStartPendingInstall(automaticUpdatesEnabled);
+
+    // An explicit click gives consent to install the package that is already staged.
+    public bool TryStartInstallNow() => TryStartPendingInstall(automaticUpdatesEnabled: true);
+
+    private bool TryStartPendingInstall(bool automaticUpdatesEnabled)
     {
-        // Deep links, restart commands and isolated test sessions keep their usual startup behavior.
-        if (arguments.Count != 0 || FindInstalledDirectory() is not { } installed
+        if (releases.UsesOfficialDownloadPage || FindInstalledDirectory() is not { } installed
             || ReadPending(PendingPath) is not { } pending
             || (pending.Automatic && !automaticUpdatesEnabled))
         {
             return false;
         }
 
+        return HandOffInstall(installed, pending);
+    }
+
+    private bool HandOffInstall(string installed, PendingLauncherUpdate pending)
+    {
         try
         {
             // Consume consent once, even if the installer or handoff fails.
@@ -170,8 +181,7 @@ public sealed class LauncherUpdater(
 
     private PendingLauncherUpdate? ReadPending(string path) =>
         JsonFileStore.Peek<PendingLauncherUpdate>(path) is { } pending
-        && releases.ParseVersion(pending.Version) is { } version
-        && version > releases.CurrentVersion
+        && ForkReleaseFeed.IsNewer(releases.ParseVersion(pending.Version), releases.CurrentVersion)
         && pending.Size is > 0 and <= UpdateInstallation.MaxInstallerSize
         && UpdateInstallation.IsHash(pending.Sha256)
             ? pending

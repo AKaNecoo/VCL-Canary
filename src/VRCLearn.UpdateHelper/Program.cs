@@ -69,7 +69,7 @@ internal static partial class Program
                     return 1;
                 }
 
-                File.WriteAllText(log, $"[{DateTimeOffset.Now:O}] Update {current} to {version}.\n");
+                File.WriteAllText(log, $"[{DateTimeOffset.Now:O}] Update {current.ToString(3)} to {version.ToString(3)}.\n");
                 ready.Set();
 
                 if (!proceed.WaitOne(TimeSpan.FromSeconds(10)) || !parent.WaitForExit(30_000))
@@ -125,7 +125,7 @@ internal static partial class Program
             var exit = install();
             if (exit != 0 || ReadVersion(directory, version.Revision >= 0) != version)
             {
-                throw new InvalidDataException($"Installer returned {exit} or did not install version {version}.");
+                throw new InvalidDataException($"Installer returned {exit} or did not install version {version.ToString(3)}.");
             }
 
             return launcher;
@@ -149,7 +149,7 @@ internal static partial class Program
                 {
                     WriteLog(log, $"Could not restore {backup}: {rollbackError}");
                     MessageBox(IntPtr.Zero, $"Update failed. The previous installation is at:\n{backup}\n\nLog: {log}",
-                        "VRCLearn Launcher", 0x10);
+                        "VCL Canary", 0x10);
                     return null;
                 }
             }

@@ -19,8 +19,8 @@
     <AssemblyVersion Condition="'$(VclCanaryAssemblyVersion)' != '' and ('$(MSBuildProjectName)' == 'VRCLearn.App' or '$(MSBuildProjectName)' == 'VRCLearn.Infrastructure')">$(VclCanaryAssemblyVersion)</AssemblyVersion>
 
     <!-- 产物保留产品名称、文件说明与备注，版本串不带 git 提交号 -->
-    <Product>VRCLearn Launcher</Product>
-    <AssemblyTitle>VRCLearn Launcher</AssemblyTitle>
+    <Product>VCL Canary</Product>
+    <AssemblyTitle>VCL Canary</AssemblyTitle>
     <Description>VRChat 工程管理器</Description>
     <GenerateAssemblyCompanyAttribute>false</GenerateAssemblyCompanyAttribute>
     <GenerateAssemblyCopyrightAttribute>false</GenerateAssemblyCopyrightAttribute>

@@ -1,9 +1,9 @@
 <div align="center">
   <img src="docs/images/logo.png" alt="VCL Canary" width="120">
   <h1>VCL Canary</h1>
-  <p>VCL Canary 是 AKaNecoo 独立维护的 <a href="https://github.com/VRLearn-Official/VRCLearn_Launcher">VRCLearn Launcher 社区分支</a>。原项目由 VRLearn 开发。Canary 为 Windows 上的 VRChat 工程和 VPM 包管理器，基于 .NET 10 与 WPF。</p>
+  <p>VCL Canary 是 AKaNecoo 独立维护的 <a href="https://github.com/VRLearn-Official/VRCLearn_Launcher">VRCLearn Launcher 社区分支</a>。原项目由 VRLearn 开发。VCL Canary 为 Windows 上的 VRChat 工程和 VPM 包管理器，基于 .NET 10 与 WPF。</p>
 
-  [下载](https://github.com/AKaNecoo/VCL-Canary/releases) · [English](README.en.md) · [问题反馈](https://github.com/AKaNecoo/VCL-Canary/issues)
+  [下载](https://github.com/AKaNecoo/VCL-Canary/releases) · [English](README.en.md) · [日本語](README.ja.md) · [问题反馈](https://github.com/AKaNecoo/VCL-Canary/issues)
 </div>
 
 <p align="center">
@@ -34,7 +34,7 @@ VCL Canary 把 VPM 仓库、包与 Unity 项目集中在一处管理，是独立
 - **插件**：从本地文件或拖放安装 `.vclplugin` 扩展。插件由社区提供，不随程序分发（见 [docs/plugins.md](docs/plugins.md)）
 - **桌面集成**：`vcc://` 深链与文件关联
 - **检查更新**：启动时最多每天检查一次 GitHub 最新版本，有新版本时打开下载页
-- **本地化**：中文与英文，支持自定义
+- **本地化**：简体中文、英文和日文，支持自定义语言包
 
 ## 安装
 
@@ -67,7 +67,9 @@ dotnet run --project src/VRCLearn.App/VRCLearn.App.csproj
 
 发布目标为 `net10.0-windows` / `win-x64`，自包含。
 
-GitHub Actions 在推送到 `dev` 或 `beta` 时分别发布 Alpha 或 Beta。正式版从受保护的 `main` 手动发布。Canary 沿用上游版本的前两段，并为每个构建系列分配一段连续编号。例如 `1.35` 系列从 `1.35.101` 开始，第 `02` 个构建为 `1.35.102`。
+GitHub Actions 在推送到 `dev` 或 `beta` 时分别发布 Alpha 或 Beta。正式版从受保护的 `main` 手动发布。VCL Canary 沿用上游版本的前两段，Alpha、Beta 和正式版共用第三段的递增序列。产品版本统一为三段号，例如 `1.35.109`。发布标签和安装包使用 `1.35.109-alpha`、`1.35.110`、`1.35.111-beta` 这样的名称。
+
+从旧标签格式（例如 `1.35.108-alpha.8`）的 VCL Canary 升级时，请下载安装包并覆盖安装一次。此后可继续使用应用内更新。
 
 ## 项目结构
 

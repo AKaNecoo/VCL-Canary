@@ -20,7 +20,6 @@ jobs:
     outputs:
       channel: ${{ steps.version.outputs.channel }}
       version: ${{ steps.version.outputs.version }}
-      display_version: ${{ steps.version.outputs.display_version }}
       tag: ${{ steps.version.outputs.tag }}
       asset: ${{ steps.version.outputs.asset }}
 
@@ -70,8 +69,8 @@ jobs:
           }
           $canary = "$($upstream.Major).$($upstream.Minor).$patch"
           $version = switch ($channel) {
-            'stable' { "$canary+build.$build" }
-            default { "$canary-$channel.$build" }
+            'stable' { $canary }
+            default { "$canary-$channel" }
           }
           $display = switch ($channel) {
             'alpha' { "$canary Alpha" }
@@ -80,16 +79,28 @@ jobs:
           }
           $asset = "VRCLearnLauncher-$($version.Replace('+', '-'))-win-x64-Setup.exe"
 
-          "channel=$channel", "version=$version", "display_version=$display", "tag=fork-v$version", "asset=$asset" >> $env:GITHUB_OUTPUT
+          "channel=$channel", "version=$version", "tag=fork-v$version", "asset=$asset" >> $env:GITHUB_OUTPUT
           "BASE_VERSION=$base", "RELEASE_VERSION=$version", "DISPLAY_VERSION=$display", "RELEASE_TAG=fork-v$version",
-            "CANARY_BUILD=$($build.ToString('D2'))", "CANARY_ASSEMBLY_VERSION=$canary.$build",
+            "CANARY_PRODUCT_VERSION=$canary", "CANARY_ASSEMBLY_VERSION=$canary.0",
             "UPSTREAM_ASSEMBLY_VERSION=$base.$runNumber", "SETUP_ASSET=$asset" >> $env:GITHUB_ENV
 
       - name: Prepare release notes
         shell: pwsh
         run: |
           $branch = $env:GITHUB_REF_NAME
-          $notes = '## Alpha 开发构建'
+          $notes = @'
+          ## 简体中文
+
+          VCL Canary Alpha 开发构建。从使用旧标签格式的 VCL Canary 升级时，请用本页安装包覆盖安装一次。之后可继续使用应用内更新。
+
+          ## 日本語
+
+          VCL Canary の Alpha 開発ビルドです。旧形式のタグが付いた VCL Canary から更新する場合は、このページのインストーラーで一度上書きインストールしてください。その後はアプリ内で更新できます。
+
+          ## English
+
+          VCL Canary Alpha development build. If you are upgrading from a VCL Canary release that uses the old tag format, install this package over your existing installation once. You can then continue updating from within the app.
+          '@
           if ($branch -ne 'dev') {
             $path = ".github/fork-release-notes/$branch.md"
             $notes = [IO.File]::ReadAllText($path).Trim()
@@ -97,10 +108,14 @@ jobs:
               throw "Update the release notes at $path before publishing."
             }
 
-            $pattern = if ($branch -eq 'main') { 'fork-v*+build.*' } else { 'fork-v*-beta.*' }
-            $tags = git for-each-ref --merged=HEAD --sort=-version:refname --format='%(refname:short)' "refs/tags/$pattern"
+            $pattern = if ($branch -eq 'main') {
+              '^fork-v\d+\.\d+\.\d+(?:\+build\.[1-9]\d*)?$'
+            } else {
+              '^fork-v\d+\.\d+\.\d+-beta(?:\.[1-9]\d*)?$'
+            }
+            $tags = git for-each-ref --merged=HEAD --sort=-version:refname --format='%(refname:short)' 'refs/tags/fork-v*'
             if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-            $previous = $tags | Where-Object { $_ -ne $env:RELEASE_TAG } | Select-Object -First 1
+            $previous = $tags | Where-Object { $_ -cmatch $pattern -and $_ -ne $env:RELEASE_TAG } | Select-Object -First 1
             if ($previous) {
               $changed = git diff --name-only $previous HEAD -- $path
               if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
@@ -110,9 +125,14 @@ jobs:
             }
           }
 
-          $run = "$env:GITHUB_SERVER_URL/$env:GITHUB_REPOSITORY/actions/runs/$env:GITHUB_RUN_ID"
-          $output = @($notes, '', "基于上游 $env:BASE_VERSION，Canary 构建 $env:CANARY_BUILD。", '',
-            "源代码提交为 $env:GITHUB_SHA。[构建记录]($run)") -join [char]10
+          $repo = "$env:GITHUB_SERVER_URL/$env:GITHUB_REPOSITORY"
+          $run = "$repo/actions/runs/$env:GITHUB_RUN_ID"
+          $commit = "$repo/commit/$env:GITHUB_SHA"
+          $output = @($notes, '', '---', '',
+            "基于上游 $env:BASE_VERSION。[构建记录]($run)", '',
+            "アップストリーム $env:BASE_VERSION ベース。[ビルド履歴]($run)", '',
+            "Based on upstream $env:BASE_VERSION. [Build log]($run)", '',
+            "Commit: [$env:GITHUB_SHA]($commit)") -join [char]10
           New-Item -ItemType Directory -Path 'artifacts/releases' -Force | Out-Null
           [IO.File]::WriteAllText('artifacts/releases/release-notes.md', $output + [char]10)
 
@@ -125,9 +145,21 @@ jobs:
           dotnet publish src/VRCLearn.App/VRCLearn.App.csproj -c Release -r win-x64 --no-restore `
             --self-contained true "-p:Version=$env:RELEASE_VERSION" -p:VclForkBuild=true "-p:VclForkCommit=$env:GITHUB_SHA" `
             "-p:VclCanaryAssemblyVersion=$env:CANARY_ASSEMBLY_VERSION" "-p:VclCanaryUpstreamAssemblyVersion=$env:UPSTREAM_ASSEMBLY_VERSION" `
-            "-p:VclCanaryDisplayVersion=$env:DISPLAY_VERSION" `
+            "-p:VclCanaryProductVersion=$env:CANARY_PRODUCT_VERSION" "-p:VclCanaryDisplayVersion=$env:DISPLAY_VERSION" `
             -p:DebugType=none -p:DebugSymbols=false -o artifacts/publish
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Verify published versions
+        shell: pwsh
+        run: |
+          $launcher = (Resolve-Path 'artifacts/publish/VRCLearnLauncher.dll').Path
+          $assembly = [Reflection.AssemblyName]::GetAssemblyName($launcher)
+          $file = [Diagnostics.FileVersionInfo]::GetVersionInfo($launcher)
+          if ($assembly.Version.ToString() -ne $env:CANARY_ASSEMBLY_VERSION -or
+              $file.ProductVersion -ne $env:CANARY_PRODUCT_VERSION -or
+              $file.FileVersion -ne $env:CANARY_PRODUCT_VERSION) {
+            throw "Unexpected launcher versions: assembly $($assembly.Version), product $($file.ProductVersion), file $($file.FileVersion)."
+          }
 
       - name: Publish update helper when present
         if: hashFiles('src/VRCLearn.UpdateHelper/VRCLearn.UpdateHelper.csproj') != ''
@@ -163,11 +195,15 @@ jobs:
             $iscc = "$env:ProgramFiles\Inno Setup 6\ISCC.exe"
           }
           $name = [IO.Path]::GetFileNameWithoutExtension($env:SETUP_ASSET)
-          & $iscc "/DMyAppVersion=$env:RELEASE_VERSION" "/DMyAppFileVersion=$env:CANARY_ASSEMBLY_VERSION" `
+          & $iscc "/DMyAppVersion=$env:CANARY_PRODUCT_VERSION" "/DMyAppFileVersion=$env:CANARY_ASSEMBLY_VERSION" `
             "/F$name" build/installer.iss
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
           $exe = Join-Path 'artifacts/releases' $env:SETUP_ASSET
+          $setupVersion = [Diagnostics.FileVersionInfo]::GetVersionInfo((Resolve-Path -LiteralPath $exe).Path)
+          if (([string]$setupVersion.ProductVersion).TrimEnd() -ne $env:CANARY_PRODUCT_VERSION) {
+            throw "Unexpected installer product version: $($setupVersion.ProductVersion)."
+          }
           $hash = (Get-FileHash -LiteralPath $exe -Algorithm SHA256).Hash.ToLowerInvariant()
           [IO.File]::WriteAllText("$exe.sha256", "$hash  $env:SETUP_ASSET" + [char]10)
 
@@ -191,7 +227,6 @@ jobs:
       GH_REPO: ${{ github.repository }}
       RELEASE_CHANNEL: ${{ needs.build.outputs.channel }}
       RELEASE_VERSION: ${{ needs.build.outputs.version }}
-      DISPLAY_VERSION: ${{ needs.build.outputs.display_version }}
       RELEASE_TAG: ${{ needs.build.outputs.tag }}
       SETUP_ASSET: ${{ needs.build.outputs.asset }}
 
@@ -233,7 +268,7 @@ jobs:
           if ($LASTEXITCODE -ne 0) {
             $flags = @()
             if ($preview) { $flags += '--prerelease' }
-            $title = "VCL Canary $env:DISPLAY_VERSION"
+            $title = "VCL Canary $env:RELEASE_VERSION"
             gh release create $tag $asset $checksum --draft --verify-tag --latest=false `
               --title $title --notes-file release-notes.md @flags
             if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
