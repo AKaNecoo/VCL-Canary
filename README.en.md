@@ -3,7 +3,7 @@
   <h1>VCL Canary</h1>
   <p>VCL Canary is an independently maintained community fork of <a href="https://github.com/VRLearn-Official/VRCLearn_Launcher">VRCLearn Launcher</a>, originally developed by VRLearn. VCL Canary is a VRChat project and VPM package manager for Windows, built with .NET 10 and WPF.</p>
 
-  [Download](https://github.com/AKaNecoo/VCL-Canary/releases) · [简体中文](README.md) · [Issues](https://github.com/AKaNecoo/VCL-Canary/issues)
+  [Download](https://github.com/AKaNecoo/VCL-Canary/releases) · [简体中文](README.md) · [日本語](README.ja.md) · [Issues](https://github.com/AKaNecoo/VCL-Canary/issues)
 </div>
 
 <p align="center">
@@ -34,7 +34,7 @@ VCL Canary manages VPM repositories, packages and Unity projects in one place. I
 - **Plugins** — install `.vclplugin` extensions from local files or by drag-and-drop. Plugins are provided by the community and are not bundled (see [docs/plugins.md](docs/plugins.md))
 - **Desktop integration** — `vcc://` deep links and file associations
 - **Update check** — checks the latest GitHub release at most once a day at startup and links to the download page
-- **Localization** — Chinese and English, with custom language packs
+- **Localization** — Simplified Chinese, English, and Japanese, with custom language packs
 
 ## Install
 
