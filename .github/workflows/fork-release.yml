@@ -125,16 +125,8 @@ jobs:
             }
           }
 
-          $repo = "$env:GITHUB_SERVER_URL/$env:GITHUB_REPOSITORY"
-          $run = "$repo/actions/runs/$env:GITHUB_RUN_ID"
-          $commit = "$repo/commit/$env:GITHUB_SHA"
-          $output = @($notes, '', '---', '',
-            "基于上游 $env:BASE_VERSION。[构建记录]($run)", '',
-            "アップストリーム $env:BASE_VERSION ベース。[ビルド履歴]($run)", '',
-            "Based on upstream $env:BASE_VERSION. [Build log]($run)", '',
-            "Commit: [$env:GITHUB_SHA]($commit)") -join [char]10
           New-Item -ItemType Directory -Path 'artifacts/releases' -Force | Out-Null
-          [IO.File]::WriteAllText('artifacts/releases/release-notes.md', $output + [char]10)
+          [IO.File]::WriteAllText('artifacts/releases/release-notes.md', $notes + [char]10)
 
       - name: Publish Windows x64 application
         shell: pwsh
