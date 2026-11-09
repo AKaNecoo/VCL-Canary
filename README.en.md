@@ -1,7 +1,7 @@
 ﻿<div align="center">
   <img src="docs/images/logo.png" alt="VCL Canary" width="120">
   <h1>VCL Canary</h1>
-  <p>VCL Canary is an independently maintained community fork of <a href="https://github.com/VRLearn-Official/VRCLearn_Launcher">VRCLearn Launcher</a>, originally developed by VRLearn. Canary is a VRChat project and VPM package manager for Windows, built with .NET 10 and WPF.</p>
+  <p>VCL Canary is an independently maintained community fork of <a href="https://github.com/VRLearn-Official/VRCLearn_Launcher">VRCLearn Launcher</a>, originally developed by VRLearn. VCL Canary is a VRChat project and VPM package manager for Windows, built with .NET 10 and WPF.</p>
 
   [Download](https://github.com/AKaNecoo/VCL-Canary/releases) · [简体中文](README.md) · [Issues](https://github.com/AKaNecoo/VCL-Canary/issues)
 </div>
@@ -67,9 +67,9 @@ dotnet run --project src/VRCLearn.App/VRCLearn.App.csproj
 
 Published builds target `net10.0-windows` / `win-x64` and are self-contained.
 
-GitHub Actions publishes Alpha from `dev` and Beta from `beta` on push. Stable releases from protected `main` are published manually. Canary keeps the upstream major and minor numbers. Alpha, Beta, and stable share one increasing patch sequence. The product version has three parts, such as `1.35.109`. Release tags and installer filenames use names such as `1.35.109-alpha`, `1.35.110`, and `1.35.111-beta`.
+GitHub Actions publishes Alpha from `dev` and Beta from `beta` on push. Stable releases from protected `main` are published manually. VCL Canary keeps the upstream major and minor numbers. Alpha, Beta, and stable share one increasing patch sequence. The product version has three parts, such as `1.35.109`. Release tags and installer filenames use names such as `1.35.109-alpha`, `1.35.110`, and `1.35.111-beta`.
 
-If you have an older Canary build with a tag such as `1.35.108-alpha.8`, download the new installer and run it over your existing installation once. In-app updates are available after that upgrade.
+If you have an older VCL Canary build with a tag such as `1.35.108-alpha.8`, download the new installer and run it over your existing installation once. In-app updates are available after that upgrade.
 
 ## Project layout
 
