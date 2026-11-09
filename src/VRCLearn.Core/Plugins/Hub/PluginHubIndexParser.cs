@@ -11,6 +11,11 @@ public static class PluginHubIndexParser
     public const int MaxPlugins = 2000;
     public const int MaxVersionsPerPlugin = 256;
 
+    private static readonly JsonSerializerOptions DisplayTextOptions = new()
+    {
+        Converters = { new PluginLocalizedTextConverter() },
+    };
+
     public static bool TryParse(string json, out PluginHubIndex? index, out string error)
     {
         index = null;
@@ -130,10 +135,24 @@ public static class PluginHubIndexParser
         return new PluginHubEntry
         {
             Id = id,
+            Name = ReadDisplayText(plugin["name"]),
+            Description = ReadDisplayText(plugin["description"]),
             ApiVersion = apiVersion,
             MinHostVersion = minHostVersion,
             Versions = releases,
         };
+    }
+
+    private static PluginLocalizedText ReadDisplayText(JsonNode? node)
+    {
+        try
+        {
+            return node?.Deserialize<PluginLocalizedText>(DisplayTextOptions) ?? PluginLocalizedText.Empty;
+        }
+        catch (JsonException)
+        {
+            return PluginLocalizedText.Empty;
+        }
     }
 
     private static PluginHubRelease? ParseRelease(JsonObject version)

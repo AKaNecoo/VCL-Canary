@@ -295,7 +295,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File build/pack-plugin.ps1 `
 3. 排除宿主程序集与 PDB；
 4. 生成 `artifacts/plugins/<id>-<version>.vclplugin`。`id` 取自 `plugin.json` 的 `id`。
 
-插件不随程序安装包分发。用户通过「从文件安装」或拖入 `.vclplugin` 手动安装。
+插件独立分发。用户可在「插件 → 浏览插件」从内置市场查找并安装，或通过「从文件安装」及拖入 `.vclplugin` 安装本地包。
 
 ## 安装与卸载
 
@@ -308,6 +308,8 @@ powershell -NoProfile -ExecutionPolicy Bypass -File build/pack-plugin.ps1 `
 
 ## 市场与更新
 
+VCL Canary 的「浏览插件」直连 [VCL 插件市场](https://vclplugin.gamemode1.top/) 的索引和同站插件包。首次下载检查兼容性、文件大小和 SHA256，再核对包内的插件 ID 与版本。通过后显示安装确认，用户确认后才安装。同站已安装插件的更新也使用直连。
+
 `plugin.json` 声明市场地址后，宿主在插件页检查更新：
 
 ```json
@@ -318,6 +320,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File build/pack-plugin.ps1 `
 ```
 
 - 索引地址固定为 `<hub>/index.json`，结构与市场页一致：每个插件含 `id`、`apiVersion`、`minHostVersion` 与 `versions[]`；每个版本含 `version`、`size`、`sha256`、`url`。
+- 浏览列表支持可选的 `name` 和 `description`，接受字符串或语言代码到文本的对象。缺少名称时显示插件 ID。
 - 包地址必须与 hub 同 scheme、同主机、同端口，且位于 hub 路径下；相对地址按索引地址解析。
 - 进入插件页时检查，同一 hub 24 小时内不重复请求，失败同样冷却；工具栏可以手动强制检查。
 - 只提示并安装更高版本；`apiVersion` 必须与宿主一致，`minHostVersion` 高于宿主时不提示。

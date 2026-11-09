@@ -32,7 +32,7 @@ public sealed partial class PluginsViewModel : PageViewModelBase
     private readonly ILogger<PluginsViewModel> _logger;
     private readonly IReadOnlyList<Option> _sortOptions;
     private readonly Dictionary<string, PluginHubUpdateCandidate> _updates = new(StringComparer.Ordinal);
-    private readonly SemaphoreSlim _updateGate = new(1, 1);
+    private readonly SemaphoreSlim _installGate = new(1, 1);
     private IReadOnlyDictionary<string, string> _providerNames =
         new Dictionary<string, string>(StringComparer.Ordinal);
 
@@ -120,6 +120,9 @@ public sealed partial class PluginsViewModel : PageViewModelBase
         {
             OnPropertyChanged(nameof(IsWorking));
             OnPropertyChanged(nameof(CanCheckUpdates));
+            InstallFromFileCommand.NotifyCanExecuteChanged();
+            RefreshCatalogCommand.NotifyCanExecuteChanged();
+            ActOnCatalogItemCommand.NotifyCanExecuteChanged();
         }
     }
 
@@ -316,7 +319,7 @@ public sealed partial class PluginsViewModel : PageViewModelBase
 
     private async Task UpdatePluginAsync(PluginItemViewModel item)
     {
-        if (item.Update is not { } candidate)
+        if (IsBusy || item.Update is not { } candidate)
         {
             return;
         }
@@ -343,7 +346,7 @@ public sealed partial class PluginsViewModel : PageViewModelBase
             return;
         }
 
-        await _updateGate.WaitAsync();
+        await _installGate.WaitAsync();
 
         try
         {
@@ -380,7 +383,7 @@ public sealed partial class PluginsViewModel : PageViewModelBase
         }
         finally
         {
-            _updateGate.Release();
+            _installGate.Release();
             Rebuild();
         }
     }
@@ -443,7 +446,9 @@ public sealed partial class PluginsViewModel : PageViewModelBase
         _updates.Remove(item.Id);
     }
 
-    [RelayCommand]
+    private bool CanInstallFromFile() => !IsBusy;
+
+    [RelayCommand(CanExecute = nameof(CanInstallFromFile))]
     private async Task InstallFromFile()
     {
         var paths = _dialogs.PickFiles(
@@ -458,76 +463,72 @@ public sealed partial class PluginsViewModel : PageViewModelBase
 
     public async Task InstallAsync(IReadOnlyList<string> paths)
     {
+        await _installGate.WaitAsync();
         var touched = false;
-
-        foreach (var path in paths)
+        IsBusy = true;
+        try
         {
-            PluginManifest manifest;
-            string sha256;
-
-            try
+            foreach (var path in paths)
             {
-                (manifest, sha256) = await _manager
-                    .InspectPackageAsync(path, CancellationToken.None);
+                PluginManifest manifest;
+                string sha256;
+                try
+                {
+                    (manifest, sha256) = await _manager.InspectPackageAsync(path, CancellationToken.None);
+                }
+                catch (Exception exception) when (IsPluginFileError(exception))
+                {
+                    _logger.LogWarning(exception, "读取插件包失败：{Path}", path);
+                    Status = _localization.Format("Plugins.InstallInvalid", exception.Message);
+                    continue;
+                }
+
+                try
+                {
+                    touched |= await ConfirmAndInstallAsync(path, manifest, sha256);
+                }
+                catch (Exception exception) when (IsPluginFileError(exception))
+                {
+                    _logger.LogWarning(exception, "安装插件失败：{Path}", path);
+                    Status = _localization.Format("Plugins.InstallFailed", exception.Message);
+                }
             }
-            catch (Exception exception) when (
-                exception is PluginPackageException or PluginManifestException
-                    or InvalidDataException or IOException or UnauthorizedAccessException)
+        }
+        finally
+        {
+            IsBusy = false;
+            _installGate.Release();
+            if (touched)
             {
-                _logger.LogWarning(exception, "读取插件包失败：{Path}", path);
-
-                Status = _localization.Format("Plugins.InstallInvalid", exception.Message);
-                continue;
+                Rebuild();
             }
+        }
+    }
 
-            var name = manifest.Name.Pick(_localization.CurrentLanguage);
-
-            var trusted = _dialogs.ShowPluginTrust(
+    private async Task<bool> ConfirmAndInstallAsync(string path, PluginManifest manifest, string sha256)
+    {
+        if (!_dialogs.ShowPluginTrust(
                 _localization["Plugins.Trust.Title"],
                 _localization["Plugins.RiskWarning"],
                 BuildTrustInfo(manifest),
                 _localization["Plugins.Trust.Install"],
-                _localization["Dialog.Cancel"]);
-
-            if (!trusted)
-            {
-                continue;
-            }
-
-            IsBusy = true;
-
-            try
-            {
-                var result = await _manager.InstallAsync(
-                    path,
-                    sha256,
-                    CancellationToken.None);
-
-                Status = result.Outcome == PluginInstallOutcome.PendingRestart
-                    ? _localization.Format("Plugins.InstallPending", name)
-                    : _localization.Format("Plugins.InstallDone", name);
-
-                touched = true;
-            }
-            catch (Exception exception) when (
-                exception is PluginPackageException or PluginManifestException
-                    or InvalidDataException or IOException or UnauthorizedAccessException)
-            {
-                _logger.LogWarning(exception, "安装插件失败：{Path}", path);
-
-                Status = _localization.Format("Plugins.InstallFailed", exception.Message);
-            }
-            finally
-            {
-                IsBusy = false;
-            }
-        }
-
-        if (touched)
+                _localization["Dialog.Cancel"]))
         {
-            Rebuild();
+            return false;
         }
+
+        var result = await _manager.InstallAsync(path, sha256, CancellationToken.None);
+        var name = manifest.Name.Pick(_localization.CurrentLanguage);
+        Status = _localization.Format(
+            result.Outcome == PluginInstallOutcome.PendingRestart ? "Plugins.InstallPending" : "Plugins.InstallDone",
+            name);
+        return true;
     }
+
+    private static bool IsPluginFileError(Exception exception) =>
+        exception is PluginPackageException or PluginManifestException or InvalidDataException
+            or IOException or UnauthorizedAccessException;
+
 
     [RelayCommand]
     private void OpenPluginDirectory()
@@ -569,6 +570,7 @@ public sealed partial class PluginsViewModel : PageViewModelBase
         OnPropertyChanged(nameof(HasPlugins));
         OnPropertyChanged(nameof(IsEmpty));
         OnPropertyChanged(nameof(IsSearchEmpty));
+        RebuildCatalog();
     }
 
     private async Task<bool> SetEnabledAsync(PluginItemViewModel item, bool enabled)

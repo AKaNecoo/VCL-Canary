@@ -71,6 +71,7 @@ public static class AppServices
             .AddSingleton<RepositoryHostService>()
             .AddSingleton<PluginStateStore>()
             .AddSingleton<PluginHubStateStore>()
+            .AddSingleton<PluginMarketClient>()
             .AddSingleton<PluginHubService>()
             .AddSingleton<PluginDirectoryScanner>()
             .AddSingleton<PluginPackageInstaller>()

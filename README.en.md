@@ -32,7 +32,7 @@ VCL Canary manages VPM repositories, packages and Unity projects in one place. I
 - **Resources** — manage local unitypackages with covers, tags, search and manuals
 - **Launcher backup** — back up configuration only or everything, restore into a chosen directory
 - **Templates** — import and create `.vrclearn-template` projects
-- **Plugins** — install `.vclplugin` extensions from local files or by drag-and-drop. Plugins are provided by the community and are not bundled (see [docs/plugins.md](docs/plugins.md))
+- **Plugins** — use **Browse plugins** to find and install compatible extensions, or select or drop a local `.vclplugin` file. Enable newly installed plugins manually. [Plugin guide](docs/plugins.md)
 - **Desktop integration** — `vcc://` deep links and file associations
 - **Launcher updates** — check the selected channel and download or install updates in the app. See [Updating](#updating).
 - **Localization** — Simplified Chinese, English, and Japanese, with custom language packs
