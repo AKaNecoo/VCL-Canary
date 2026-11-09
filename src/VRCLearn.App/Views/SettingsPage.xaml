@@ -651,10 +651,9 @@
                         Style="{StaticResource FieldRow}"
                         Visibility="{Binding Update.HasUpdateChannels, Converter={StaticResource BooleanToVisibilityConverter}}">
                         <HeaderedContentControl.Header>
-                            <StackPanel>
+                            <StackPanel Margin="0,0,12,0">
                                 <TextBlock Text="{markup:Tr Settings.Update.Channel}" />
                                 <TextBlock
-                                    MaxWidth="360"
                                     Margin="{StaticResource Gap.Tight}"
                                     HorizontalAlignment="Left"
                                     Style="{StaticResource Caption}"
@@ -674,10 +673,9 @@
 
                     <HeaderedContentControl Style="{StaticResource FieldRow}">
                         <HeaderedContentControl.Header>
-                            <StackPanel>
+                            <StackPanel Margin="0,0,12,0">
                                 <TextBlock Text="{markup:Tr Settings.Update.AutoUpdate}" />
                                 <TextBlock
-                                    MaxWidth="360"
                                     Margin="{StaticResource Gap.Tight}"
                                     HorizontalAlignment="Left"
                                     Style="{StaticResource Caption}"
