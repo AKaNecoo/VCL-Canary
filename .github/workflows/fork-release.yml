@@ -220,6 +220,10 @@ jobs:
   release:
     needs: build
     runs-on: ubuntu-latest
+    concurrency:
+      group: vcl-canary-publish
+      queue: max
+      cancel-in-progress: false
     permissions:
       contents: write
     env:
@@ -239,6 +243,42 @@ jobs:
       - name: Verify installer checksum
         working-directory: release-assets
         run: sha256sum -c "$SETUP_ASSET.sha256"
+
+      - name: Verify upgrade paths from published channels
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $repo = $env:GH_REPO
+          $version = [version]($env:RELEASE_VERSION -replace '-.*$')
+          $tags = gh api --paginate "repos/$repo/releases?per_page=100" --jq '.[] | select(.draft == false) | .tag_name'
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+          # Old-format clients use the documented one-time manual upgrade.
+          $latest = @{}
+          foreach ($tag in $tags) {
+            if ($tag -ceq $env:RELEASE_TAG -or $tag -cnotmatch '^fork-v(\d+\.\d+\.\d+)(?:-(alpha|beta))?$') {
+              continue
+            }
+
+            $channel = $Matches[2] ?? 'stable'
+            $previous = [version]$Matches[1]
+            if (!$latest.ContainsKey($channel) -or $previous -gt $latest[$channel].Version) {
+              $latest[$channel] = @{ Tag = $tag; Version = $previous }
+            }
+          }
+
+          foreach ($release in $latest.Values) {
+            if ($version -le $release.Version) {
+              throw "Version $version must be newer than published release $($release.Tag)."
+            }
+
+            $comparison = gh api "repos/$repo/compare/$($release.Tag)...$($env:GITHUB_SHA)?per_page=1" --jq .status
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+            if ($comparison -cnotin @('ahead', 'identical')) {
+              throw "$($env:RELEASE_TAG) does not contain $($release.Tag). Merge the published release into the candidate before publishing."
+            }
+            Write-Host "Verified upgrade from $($release.Tag) ($comparison)."
+          }
 
       - name: Publish GitHub Release
         shell: pwsh
