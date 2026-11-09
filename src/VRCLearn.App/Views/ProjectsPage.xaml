@@ -24,7 +24,6 @@
                         <ColumnDefinition Width="*" MinWidth="160" />
                         <ColumnDefinition Width="Auto" />
                         <ColumnDefinition Width="Auto" />
-                        <ColumnDefinition Width="Auto" />
                     </Grid.ColumnDefinitions>
                     <ui:TextBox
                         Grid.Column="0"
@@ -48,10 +47,6 @@
                         ItemsSource="{Binding SortingDirections}"
                         SelectedValue="{Binding SortingDirection}"
                         SelectedValuePath="Value" />
-                    <ui:ProgressRing
-                        Grid.Column="3"
-                        Margin="12,0,0,0"
-                        Style="{StaticResource BusyRing}" />
                 </Grid>
 
                 <StackPanel
@@ -59,10 +54,12 @@
                     VerticalAlignment="Center"
                     Orientation="Horizontal">
                     <ui:Button
-                        Style="{StaticResource ToolbarButton}"
+                        x:Name="ProjectRefreshButton"
+                        Style="{StaticResource RefreshToolbarButton}"
                         Appearance="Secondary"
                         Command="{Binding RefreshCommand}"
-                        Content="{markup:Tr Projects.Refresh}" />
+                        Content="{markup:Tr Projects.Refresh}"
+                        Tag="{Binding IsBusy}" />
                     <ui:Button
                         Style="{StaticResource ToolbarButton}"
                         Appearance="Secondary"

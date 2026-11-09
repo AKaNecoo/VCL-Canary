@@ -99,7 +99,6 @@ public sealed partial class PluginsViewModel : PageViewModelBase
 
     public bool IsSearchEmpty => HasPlugins && FilteredPlugins.IsEmpty;
 
-    public bool IsWorking => IsBusy || IsCheckingUpdates;
 
     public bool CanCheckUpdates => !IsCheckingUpdates && !IsBusy;
 
@@ -108,7 +107,6 @@ public sealed partial class PluginsViewModel : PageViewModelBase
 
     partial void OnIsCheckingUpdatesChanged(bool value)
     {
-        OnPropertyChanged(nameof(IsWorking));
         OnPropertyChanged(nameof(CanCheckUpdates));
     }
 
@@ -118,7 +116,6 @@ public sealed partial class PluginsViewModel : PageViewModelBase
 
         if (e.PropertyName == nameof(IsBusy))
         {
-            OnPropertyChanged(nameof(IsWorking));
             OnPropertyChanged(nameof(CanCheckUpdates));
             InstallFromFileCommand.NotifyCanExecuteChanged();
             RefreshCatalogCommand.NotifyCanExecuteChanged();

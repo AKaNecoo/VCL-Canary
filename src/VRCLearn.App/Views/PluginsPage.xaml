@@ -81,7 +81,6 @@
                                 <ColumnDefinition Width="Auto" />
                                 <ColumnDefinition Width="Auto" />
                                 <ColumnDefinition Width="Auto" />
-                                <ColumnDefinition Width="Auto" />
                             </Grid.ColumnDefinitions>
 
                             <ui:TextBox
@@ -99,12 +98,15 @@
                                 SelectedValuePath="Value"
                                 ToolTip="{markup:Tr Plugins.Sort}" />
                             <ui:Button
+                                x:Name="CheckPluginUpdatesButton"
                                 Grid.Column="2"
                                 Margin="{StaticResource Gap.Inline}"
                                 Appearance="Secondary"
                                 Command="{Binding CheckUpdatesCommand}"
                                 Content="{markup:Tr Plugins.CheckUpdates}"
-                                IsEnabled="{Binding CanCheckUpdates}" />
+                                IsEnabled="{Binding CanCheckUpdates}"
+                                Style="{StaticResource RefreshToolbarButton}"
+                                Tag="{Binding IsCheckingUpdates}" />
                             <ui:Button
                                 x:Name="InstallPluginFileButton"
                                 Grid.Column="3"
@@ -112,11 +114,6 @@
                                 Appearance="Secondary"
                                 Command="{Binding InstallFromFileCommand}"
                                 Content="{markup:Tr Plugins.Install}" />
-                            <ui:ProgressRing
-                                Grid.Column="4"
-                                Margin="{StaticResource Gap.Inline}"
-                                Style="{StaticResource BusyRing}"
-                                Visibility="{Binding IsWorking, Converter={StaticResource BooleanToVisibilityConverter}}" />
                         </Grid>
 
                     <StackPanel Grid.Row="1" Margin="32,16,32,0">
@@ -309,11 +306,15 @@
                             Content="{markup:Tr Plugins.Install}"
                             DockPanel.Dock="Right" />
                         <ui:Button
+                            x:Name="MarketRefreshButton"
+                            MinWidth="96"
                             Margin="{StaticResource Gap.Inline}"
                             Appearance="Secondary"
                             Command="{Binding RefreshCatalogCommand}"
                             Content="{Binding CatalogRefreshText}"
-                            DockPanel.Dock="Right" />
+                            DockPanel.Dock="Right"
+                            Style="{StaticResource RefreshToolbarButton}"
+                            Tag="{Binding IsLoadingCatalog}" />
                         <ui:TextBox
                             AutomationProperties.Name="{markup:Tr Plugins.Catalog.Search}"
                             ClearButtonEnabled="True"
@@ -410,6 +411,5 @@
                 </Grid>
             </TabItem>
         </TabControl>
-
     </Grid>
 </UserControl>

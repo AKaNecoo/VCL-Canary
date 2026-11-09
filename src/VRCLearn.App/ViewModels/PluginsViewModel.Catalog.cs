@@ -67,11 +67,7 @@ public sealed partial class PluginsViewModel
         NotifyCatalogNotice();
     }
 
-    partial void OnIsLoadingCatalogChanged(bool value)
-    {
-        ActOnCatalogItemCommand.NotifyCanExecuteChanged();
-        NotifyCatalogNotice();
-    }
+    partial void OnIsLoadingCatalogChanged(bool value) => NotifyCatalogNotice();
 
     partial void OnCatalogFailedChanged(bool value) => NotifyCatalogNotice();
 
@@ -86,10 +82,10 @@ public sealed partial class PluginsViewModel
     private async Task RefreshCatalog()
     {
         IsLoadingCatalog = true;
-        CatalogFailed = false;
         try
         {
             _catalogIndex = await _hub.BrowseAsync(CancellationToken.None);
+            CatalogFailed = false;
             RebuildCatalog();
         }
         catch (Exception exception) when (exception is HttpRequestException or InvalidDataException
@@ -114,12 +110,17 @@ public sealed partial class PluginsViewModel
         if (_catalogIndex is { } index)
         {
             var installed = Plugins.ToDictionary(item => item.Id, StringComparer.Ordinal);
-            _catalogItems = index.Plugins
+            var items = index.Plugins
                 .Select(entry => MakeCatalogItem(entry, installed.GetValueOrDefault(entry.Id)))
                 .OrderBy(item => item.Name, StringComparer.CurrentCultureIgnoreCase)
                 .ThenBy(item => item.Id, StringComparer.Ordinal)
                 .ToArray();
-            OnPropertyChanged(nameof(VisibleCatalog));
+            if (_catalogItems.Count != items.Length
+                || _catalogItems.Zip(items).Any(pair => !pair.First.HasSameContent(pair.Second)))
+            {
+                _catalogItems = items;
+                OnPropertyChanged(nameof(VisibleCatalog));
+            }
         }
 
         NotifyCatalogNotice();
@@ -175,7 +176,7 @@ public sealed partial class PluginsViewModel
     }
 
     private bool CanActOnCatalogItem(PluginCatalogItem? item) =>
-        !IsBusy && !IsLoadingCatalog && item is { CanAct: true };
+        !IsBusy && item is { CanAct: true };
 
     [RelayCommand(CanExecute = nameof(CanActOnCatalogItem))]
     private async Task ActOnCatalogItem(PluginCatalogItem? item)
@@ -279,7 +280,14 @@ public sealed partial class PluginCatalogItem(
     public bool CanAct => IsInstalled || Package is not null;
     public PluginHubRelease? Release { get; } = release;
     public Uri? Package { get; } = package;
-    public string ButtonText => IsDownloading ? downloading : action;
+    private string DownloadingText { get; } = downloading;
+    public string ButtonText => IsDownloading ? DownloadingText : action;
+
+    internal bool HasSameContent(PluginCatalogItem other) =>
+        Id == other.Id && Name == other.Name && Description == other.Description && Version == other.Version
+        && Reason == other.Reason && IsInstalled == other.IsInstalled && ButtonText == other.ButtonText
+        && DownloadingText == other.DownloadingText
+        && Package == other.Package && Release?.Sha256 == other.Release?.Sha256 && Release?.Size == other.Release?.Size;
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(ButtonText))]
