@@ -3,22 +3,17 @@
   <h1>VCL Canary</h1>
   <p>A Windows manager for VRChat projects and VPM packages. Based on <a href="https://github.com/VRLearn-Official/VRCLearn_Launcher">VRCLearn Launcher</a> by VRLearn and maintained independently by AKaNecoo.</p>
 
-  **[Download](https://github.com/AKaNecoo/VCL-Canary/releases/latest)** · [Report an issue](https://github.com/AKaNecoo/VCL-Canary/issues)
-
-  [简体中文](README.md) · [日本語](README.ja.md)
+  **[Download](https://github.com/AKaNecoo/VCL-Canary/releases/latest)** · [Report an issue](https://github.com/AKaNecoo/VCL-Canary/issues) · [简体中文](README.md) · [日本語](README.ja.md)
 </div>
 
 ## VCL Canary highlights
 
 - **Project packages.** Available packages appear below installed packages by default. Search each list separately or jump between them. Upgrade packages to newer stable versions in bulk, or reinstall packages with an available source at their locked versions.
 - **In-app updates.** Subscribe to the stable, Beta, or Alpha channel. Once an eligible update has downloaded, install it right away or on the next launch.
-
-VCL Canary also manages VPM repositories and dependencies, creates and opens Unity projects, backs up and restores projects, organizes local `.unitypackage` files, supports project templates and local plugins, and handles `vcc://` links. The interface is available in Simplified Chinese, English, and Japanese.
-
-### Try in Alpha
-
 - **In-app plugin catalog.** Open **Plugins → Browse plugins** to find extensions, check compatibility, and download and install them.
 - **Archive with external local packages (experimental).** Enable the feature in Settings to preview and include directly referenced local UPM package directories or `.tgz` packages in an archive. The launcher removes the original project directory after verifying the archive.
+
+VCL Canary also manages VPM repositories and dependencies, creates and opens Unity projects, backs up and restores projects, organizes local `.unitypackage` files, supports project templates and local plugins, and handles `vcc://` links. The interface is available in Simplified Chinese, English, and Japanese.
 
 ## Screenshot
 
