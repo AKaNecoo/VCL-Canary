@@ -3,7 +3,7 @@
   <h1>VCL Canary</h1>
   <p>Windows で VRChat プロジェクトと VPM パッケージを管理するツールです。VRLearn が開発した <a href="https://github.com/VRLearn-Official/VRCLearn_Launcher">VRCLearn Launcher</a> をベースに、AKaNecoo が独立してメンテナンスしています。</p>
 
-  **[安定版をダウンロード](https://github.com/AKaNecoo/VCL-Canary/releases/latest)** · [Beta / Alpha を見る](https://github.com/AKaNecoo/VCL-Canary/releases) · [不具合を報告](https://github.com/AKaNecoo/VCL-Canary/issues)
+  **[ダウンロード](https://github.com/AKaNecoo/VCL-Canary/releases/latest)** · [不具合を報告](https://github.com/AKaNecoo/VCL-Canary/issues)
 
   [简体中文](README.md) · [English](README.en.md)
 </div>
@@ -26,17 +26,9 @@ VPM リポジトリと依存関係の管理、Unity プロジェクトの作成�
 
 ## インストールと更新
 
-[最新の安定版](https://github.com/AKaNecoo/VCL-Canary/releases/latest)から `VRCLearnLauncher-<バージョン>-win-x64-Setup.exe` をダウンロードしてください。Windows 10 以降の x64 に対応し、インストーラーには .NET 10 デスクトップランタイムが含まれます。インストーラーは未署名のため、Windows SmartScreen に警告が表示される場合があります。リリースページには SHA256 チェックサムファイルが添付されています。
+ページ上部の「ダウンロード」から `VRCLearnLauncher-<バージョン>-win-x64-Setup.exe` を入手して実行してください。Windows 10 以降の x64 に対応しています。
 
-既存のプロジェクトを移行する前に、プロジェクトとランチャーの設定をバックアップしてください。まず一つのプロジェクトで Unity のバージョンとパッケージの依存関係を確認します。`1.35.108-alpha.8` など旧形式の Canary から更新する場合は、新しいインストーラーで一度上書きインストールしてください。その後はアプリ内で更新できます。
-
-「設定 → このアプリについて」から、更新の確認、チャンネルの選択、自動更新の有効化ができます。起動時は過去 24 時間以内に成功した確認結果を再利用する場合があります。手動で確認すると、その場で確認し直します。安定版チャンネルでは安定版、Beta では Beta と安定版、Alpha では 3 チャンネルすべての更新を受け取れます。インストール済みのビルドより新しく、互換性のある更新が対象です。自動更新を有効にすると、対象の更新が自動でダウンロードされ、次回起動時にインストールされます。
-
-- 「公式版」を選ぶと自動更新が無効になります。「更新をダウンロード」から公式版のダウンロードページを開けます。
-- 表示言語が中国語でアプリ内にプロキシを設定していない場合、Canary チャンネルの「更新をダウンロード」からこのリポジトリのリリースページを開きます。
-- アプリ内でのダウンロードや検証に失敗した場合は、「手動ダウンロード」から対象バージョンのリリースページを開けます。
-
-設定、データ、ログは `%LocalAppData%\VRCLearnLauncher` の `config\`、`data\`、`logs\` に保存されます。初回起動時に旧バージョンの設定の移行が試行されます。
+「設定 → このアプリについて」から更新を確認できます。アプリ内で更新できない場合は、最新版のインストーラーで上書きインストールしてください。
 
 ## 開発とコントリビュート
 
