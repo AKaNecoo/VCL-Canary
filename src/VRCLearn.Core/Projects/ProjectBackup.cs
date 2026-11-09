@@ -22,7 +22,8 @@ public static class ProjectBackup
         Stream destination,
         BackupFormat format,
         IProgress<FileProgress>? progress,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        Func<string, Stream>? openFile = null)
     {
         var total = content.Directories.Count + content.Files.Count;
         var done = 0;
@@ -48,7 +49,9 @@ public static class ProjectBackup
         {
             cancellationToken.ThrowIfCancellationRequested();
 
-            await using var source = await io.OpenReadOrNullAsync(file, cancellationToken).ConfigureAwait(false);
+            await using var source = openFile is null
+                ? await io.OpenReadOrNullAsync(file, cancellationToken).ConfigureAwait(false)
+                : openFile(file);
 
             if (source is null)
             {

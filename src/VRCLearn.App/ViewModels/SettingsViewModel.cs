@@ -39,6 +39,7 @@ public sealed partial class SettingsViewModel : ObservableObject
     private readonly ILogger<SettingsViewModel> _logger;
     private readonly IReadOnlyList<Option> _buttonColors;
     private readonly IReadOnlyList<Option> _backupFormats;
+    private readonly IReadOnlyList<Option> _backupScopes;
     private readonly IReadOnlyList<Option> _hubAccessMethods;
 
     private bool _configBusy;
@@ -99,6 +100,11 @@ public sealed partial class SettingsViewModel : ObservableObject
             new("zip-store", () => localization["Settings.BackupFormat.Store"]),
             new("zip-best", () => localization["Settings.BackupFormat.Best"]),
         ];
+        _backupScopes =
+        [
+            new("config", () => localization["Settings.ManagerBackup.Config"]),
+            new("full", () => localization["Settings.ManagerBackup.Full"]),
+        ];
         _hubAccessMethods =
         [
             new("read-config", () => localization["Settings.UnityHubAccess.ReadConfig"]),
@@ -107,6 +113,9 @@ public sealed partial class SettingsViewModel : ObservableObject
 
         _selectedButtonColor = _store.Current.ButtonColor;
         _animationEnabled = _store.Current.AnimationEnabled;
+        _showExperimentalAutoBackup = _store.Current.ShowExperimentalAutoBackup ?? _store.Current.ExperimentalFeatures;
+        _showExperimentalFullBackup = _store.Current.ShowExperimentalFullBackup ?? _store.Current.ExperimentalFeatures;
+        _showArchiveLocalPackages = _store.Current.ShowArchiveLocalPackages;
         _proxyEnabled = _store.Current.ProxyEnabled;
 
         (_proxyScheme, _proxyHost, _proxyPort) = ProxyAddress.Split(_store.Current.ProxyUrl);
@@ -127,6 +136,7 @@ public sealed partial class SettingsViewModel : ObservableObject
         {
             LocalizedOptions.Refresh(_buttonColors);
             LocalizedOptions.Refresh(_backupFormats);
+            LocalizedOptions.Refresh(_backupScopes);
             LocalizedOptions.Refresh(_hubAccessMethods);
         };
     }
@@ -136,6 +146,45 @@ public sealed partial class SettingsViewModel : ObservableObject
     public IReadOnlyList<Option> ButtonColors => _buttonColors;
 
     public IReadOnlyList<Option> BackupFormats => _backupFormats;
+
+    [ObservableProperty]
+    private bool _showExperimentalAutoBackup;
+
+    partial void OnShowExperimentalAutoBackupChanged(bool value)
+    {
+        _store.Current.ShowExperimentalAutoBackup = value;
+        _store.Save();
+    }
+
+    [ObservableProperty]
+    private bool _showExperimentalFullBackup;
+
+    partial void OnShowExperimentalFullBackupChanged(bool value)
+    {
+        _store.Current.ShowExperimentalFullBackup = value;
+        _store.Save();
+        if (!value)
+        {
+            SelectedBackupScope = "config";
+        }
+
+        OnPropertyChanged(nameof(BackupScopes));
+    }
+
+    [ObservableProperty]
+    private bool _showArchiveLocalPackages;
+
+    partial void OnShowArchiveLocalPackagesChanged(bool value)
+    {
+        _store.Current.ShowArchiveLocalPackages = value;
+        _store.Save();
+    }
+
+    public IReadOnlyList<Option> BackupScopes =>
+        ShowExperimentalFullBackup ? _backupScopes : [_backupScopes[0]];
+
+    [ObservableProperty]
+    private string _selectedBackupScope = "config";
 
     public string DataDirectory => _paths.Root;
 
@@ -340,15 +389,7 @@ public sealed partial class SettingsViewModel : ObservableObject
     }
 
     [RelayCommand]
-    private void ConfigureAutoBackup() => _dialogs.ShowAutoBackup();
-
-    [RelayCommand]
-    private Task Backup() => CreateLauncherBackupAsync(BackupScope.Config);
-
-    [RelayCommand]
-    private Task BackupFull() => CreateLauncherBackupAsync(BackupScope.Full);
-
-    private async Task CreateLauncherBackupAsync(BackupScope scope)
+    private async Task Backup()
     {
         if (_configBusy)
         {
@@ -356,8 +397,9 @@ public sealed partial class SettingsViewModel : ObservableObject
             return;
         }
 
-        var full = scope == BackupScope.Full;
-        var title = _localization[full ? "Settings.ManagerBackup.Full" : "Settings.ConfigBackup"];
+        var full = ShowExperimentalFullBackup && SelectedBackupScope == "full";
+        var scope = full ? BackupScope.Full : BackupScope.Config;
+        var title = _localization[full ? "Settings.Experimental.FullBackup" : "Settings.ConfigBackup"];
 
         _dialogs.ShowNotice(
             title,

@@ -86,6 +86,19 @@ public sealed class DialogService
         return dialog.ShowDialog() == true;
     }
 
+    public bool? ShowArchiveChoice(string title, string message, string archiveText)
+    {
+        Record(title, message);
+        var localization = _services.GetRequiredService<LocalizationService>();
+        var dialog = new ConfirmDialog(title, message, archiveText, confirmDanger: true);
+        dialog.OfferLocalPackages(
+            localization["Projects.Archive.WithLocalPackages"],
+            localization["Projects.Archive.Preview"]);
+        Prepare(dialog);
+
+        return dialog.ShowDialog() == true ? dialog.IncludesLocalPackages : null;
+    }
+
     public async Task RunBusyAsync(string title, string message, Func<Task> work)
     {
         var dialog = new BusyDialog(title, message);

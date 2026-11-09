@@ -343,16 +343,16 @@ public sealed partial class ProjectsViewModel : PageViewModelBase, IPageViewMode
             return;
         }
 
-        if (!_dialogs.ShowConfirm(
-                _localization["Projects.Archive.ConfirmTitle"],
-                _localization.Format("Projects.Archive.ConfirmMessage", project.Name),
-                _localization["Projects.Archive.ConfirmButton"],
-                danger: true))
+        var title = _localization["Projects.Archive.ConfirmTitle"];
+        var message = _localization.Format("Projects.Archive.ConfirmMessage", project.Name);
+        var archiveText = _localization["Projects.Archive.ConfirmButton"];
+        bool? choice = _configStore.Current.ShowArchiveLocalPackages
+            ? _dialogs.ShowArchiveChoice(title, message, archiveText)
+            : _dialogs.ShowConfirm(title, message, archiveText, danger: true) ? false : null;
+        if (choice is not { } includeLocal)
         {
             return;
         }
-
-        ShowStatus(_localization.Format("Projects.Status.Archiving", project.Name));
 
         await RunBusyAsync(
             "归档项目失败：{Project}",
@@ -361,31 +361,62 @@ public sealed partial class ProjectsViewModel : PageViewModelBase, IPageViewMode
         {
             var unityProject = await _service.OpenAsync(project.ProjectPath, CancellationToken.None);
             var config = _configStore.Current;
+            var portable = includeLocal
+                ? await Task.Run(() => _backups.PreparePortableArchive(unityProject))
+                : null;
+            if (portable is not null && !ConfirmPortableArchive(title, message, archiveText, portable))
+            {
+                return;
+            }
 
+            ShowStatus(_localization.Format("Projects.Status.Archiving", project.Name));
+            var format = ProjectBackupService.ParseFormat(config.BackupFormat);
+            var timestamp = DateTime.Now;
             var (record, status) = await _progress.RunAsync(
                 _localization["Progress.Archive"],
                 async reporter =>
                 {
-                    var backup = await _backups.CreateAsync(
-                        unityProject,
-                        project.Name,
-                        ProjectBackupService.ParseFormat(config.BackupFormat),
-                        DateTime.Now,
-                        reporter,
-                        CancellationToken.None,
-                        archive: true);
+                    var backup = portable is null
+                        ? await _backups.CreateAsync(
+                            unityProject, project.Name, format, timestamp, reporter, CancellationToken.None, archive: true)
+                        : await Task.Run(() => _backups.CreatePortableArchiveAsync(
+                            unityProject, portable, project.Name, format, timestamp, reporter, CancellationToken.None));
+                    if (portable is not null && _opener.IsBusy(project.ProjectPath))
+                    {
+                        return (backup, (RemoveProjectStatus?)null);
+                    }
 
-                    return (backup, await Task.Run(() => _service.RemoveFromDisk(project.ProjectPath, reporter)));
+                    var removal = await Task.Run(() => _service.RemoveFromDisk(project.ProjectPath, reporter));
+                    return (backup, (RemoveProjectStatus?)removal);
                 });
 
-            ShowStatus(RemovalStatus(
-                project,
-                status,
-                _localization.Format("Projects.Status.Archived", record.FileName)));
+            ShowStatus(status is { } removalStatus
+                ? RemovalStatus(project, removalStatus, _localization.Format("Projects.Status.Archived", record.FileName))
+                : _localization.Format("Projects.Archive.ProjectKept", record.FileName));
         },
-            "Projects.Status.BackupFailed");
+            includeLocal ? "Projects.Archive.PortableFailed" : "Projects.Status.BackupFailed");
 
         _ = ReloadAsync();
+    }
+
+    private bool ConfirmPortableArchive(string title, string message, string archiveText, PortableProjectArchive plan)
+    {
+        var detailTitle = _localization.Format(
+            "Projects.Archive.LocalPackages",
+            plan.Packages.Count,
+            SizeText.Format(plan.Packages.Sum(package => package.Bytes)));
+        var detail = plan.Packages.Count == 0
+            ? _localization["Projects.Archive.NoLocalPackages"]
+            : string.Join("\n\n", plan.Packages.Select(package =>
+                $"{package.Name} ({SizeText.Format(package.Bytes)})\n{package.Source}\n→ {package.Destination}"));
+
+        return _dialogs.ShowConfirm(
+            title,
+            message,
+            archiveText,
+            danger: true,
+            detailTitle: detailTitle,
+            detailBody: detail);
     }
 
     [RelayCommand]

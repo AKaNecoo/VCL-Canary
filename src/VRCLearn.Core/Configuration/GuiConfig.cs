@@ -17,6 +17,12 @@ public sealed class GuiConfig : IJsonOnDeserialized
     /// <summary>保留官方版识别的实验性功能设置，供覆盖安装时沿用。</summary>
     public bool ExperimentalFeatures { get; set; }
 
+    public bool? ShowExperimentalAutoBackup { get; set; }
+
+    public bool? ShowExperimentalFullBackup { get; set; }
+
+    public bool ShowArchiveLocalPackages { get; set; }
+
     public bool LauncherAutoUpdate { get; set; }
 
     public string? LauncherUpdateChannel { get; set; }

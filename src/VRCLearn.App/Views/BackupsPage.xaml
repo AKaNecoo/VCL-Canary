@@ -20,6 +20,7 @@
                     <ColumnDefinition Width="Auto" />
                     <ColumnDefinition Width="Auto" />
                     <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="Auto" />
                 </Grid.ColumnDefinitions>
 
                 <ui:TextBox
@@ -58,8 +59,18 @@
                     Command="{Binding ImportCommand}"
                     Content="{markup:Tr Backups.Import}" />
 
-                <ui:ProgressRing
+                <ui:Button
                     Grid.Column="5"
+                    Margin="{StaticResource Gap.Inline}"
+                    Appearance="Secondary"
+                    Command="{Binding ConfigureAutoBackupCommand}"
+                    Content="{markup:Tr Backups.AutoBackup}"
+                    Icon="{ui:SymbolIcon Settings24}"
+                    ToolTip="{markup:Tr Backups.AutoBackupHint}"
+                    Visibility="{Binding ShowExperimentalAutoBackup, Converter={StaticResource BooleanToVisibilityConverter}}" />
+
+                <ui:ProgressRing
+                    Grid.Column="6"
                     Margin="{StaticResource Gap.Inline}"
                     Style="{StaticResource BusyRing}" />
             </Grid>

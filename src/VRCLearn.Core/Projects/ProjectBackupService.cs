@@ -4,6 +4,9 @@ namespace VRCLearn.Core.Projects;
 
 public sealed class ProjectBackupService(IBackupStore store)
 {
+    public PortableProjectArchive PreparePortableArchive(UnityProject project) =>
+        PortableProjectArchive.Prepare(project, store.Directory);
+
     public Task<BackupRecord> CreateAsync(
         UnityProject project,
         string projectName,
@@ -31,6 +34,26 @@ public sealed class ProjectBackupService(IBackupStore store)
                 progress,
                 token),
             cancellationToken);
+    }
+
+    public Task<BackupRecord> CreatePortableArchiveAsync(
+        UnityProject project,
+        PortableProjectArchive plan,
+        string projectName,
+        BackupFormat format,
+        DateTime timestamp,
+        IProgress<FileProgress>? progress,
+        CancellationToken cancellationToken)
+    {
+        plan.CheckDestination(store.Directory);
+        DiskSpace.Ensure(store.Directory, plan.EstimatedBytes);
+
+        return store.CreateAsync(
+            new BackupCreateRequest(projectName, timestamp, IsArchive: true, Note: null, IsAuto: false),
+            (destination, token) => ProjectBackup.CreateAsync(
+                project.Io, plan.Content, destination, format, progress, token, plan.OpenFile),
+            cancellationToken,
+            plan.VerifyAsync);
     }
 
     private static long EstimateBytes(UnityProject project, ProjectContent content)

@@ -102,33 +102,42 @@
                                 <TextBlock
                                     Margin="{StaticResource Gap.Tight}"
                                     Style="{StaticResource Caption}"
-                                    Text="{markup:Tr AutoBackup.EnableHint}" />
+                                    Text="{markup:Tr Settings.Experimental.AutoBackupHint}" />
                             </StackPanel>
                         </HeaderedContentControl.Header>
-                        <ui:Button
-                            MinWidth="120"
-                            Appearance="Secondary"
-                            AutomationProperties.Name="{markup:Tr Backups.AutoBackupHint}"
-                            Command="{Binding ConfigureAutoBackupCommand}"
-                            Content="{markup:Tr Settings.Experimental.Configure}" />
+                        <ui:ToggleSwitch
+                            AutomationProperties.Name="{markup:Tr Backups.AutoBackup}"
+                            IsChecked="{Binding ShowExperimentalAutoBackup, Mode=TwoWay}" />
                     </HeaderedContentControl>
 
                     <HeaderedContentControl Style="{StaticResource FieldRow}">
                         <HeaderedContentControl.Header>
                             <StackPanel Margin="0,0,12,0">
-                                <TextBlock Text="{markup:Tr Settings.ManagerBackup.Full}" />
+                                <TextBlock Text="{markup:Tr Settings.Experimental.FullBackup}" />
                                 <TextBlock
                                     Margin="{StaticResource Gap.Tight}"
                                     Style="{StaticResource Caption}"
-                                    Text="{markup:Tr Settings.ManagerBackup.FullHint}" />
+                                    Text="{markup:Tr Settings.Experimental.FullBackupHint}" />
                             </StackPanel>
                         </HeaderedContentControl.Header>
-                        <ui:Button
-                            MinWidth="120"
-                            Appearance="Secondary"
-                            AutomationProperties.Name="{markup:Tr Settings.ManagerBackup.Full}"
-                            Command="{Binding BackupFullCommand}"
-                            Content="{markup:Tr Settings.ManagerBackup.Backup}" />
+                        <ui:ToggleSwitch
+                            AutomationProperties.Name="{markup:Tr Settings.Experimental.FullBackup}"
+                            IsChecked="{Binding ShowExperimentalFullBackup, Mode=TwoWay}" />
+                    </HeaderedContentControl>
+
+                    <HeaderedContentControl Style="{StaticResource FieldRow}">
+                        <HeaderedContentControl.Header>
+                            <StackPanel Margin="0,0,12,0">
+                                <TextBlock Text="{markup:Tr Settings.Experimental.ArchiveLocalPackages}" />
+                                <TextBlock
+                                    Margin="{StaticResource Gap.Tight}"
+                                    Style="{StaticResource Caption}"
+                                    Text="{markup:Tr Settings.Experimental.ArchiveLocalPackagesHint}" />
+                            </StackPanel>
+                        </HeaderedContentControl.Header>
+                        <ui:ToggleSwitch
+                            AutomationProperties.Name="{markup:Tr Settings.Experimental.ArchiveLocalPackages}"
+                            IsChecked="{Binding ShowArchiveLocalPackages, Mode=TwoWay}" />
                     </HeaderedContentControl>
                 </StackPanel>
             </Expander>
@@ -448,6 +457,13 @@
                             </StackPanel>
                         </HeaderedContentControl.Header>
                         <StackPanel Orientation="Horizontal">
+                            <ComboBox
+                                MinWidth="150"
+                                AutomationProperties.Name="{markup:Tr Settings.ManagerBackup.Scope}"
+                                DisplayMemberPath="Display"
+                                ItemsSource="{Binding BackupScopes}"
+                                SelectedValue="{Binding SelectedBackupScope}"
+                                SelectedValuePath="Value" />
                             <ui:Button
                                 MinWidth="88"
                                 Margin="{StaticResource Gap.Inline}"

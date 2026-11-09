@@ -61,6 +61,7 @@ public sealed partial class BackupsViewModel : PageViewModelBase, IPageViewModel
         _logger = logger;
         _progress = progress;
         _configs = configs;
+        _configs.Changed += (_, _) => OnPropertyChanged(nameof(ShowExperimentalAutoBackup));
 
         _sortOptions =
         [
@@ -88,6 +89,9 @@ public sealed partial class BackupsViewModel : PageViewModelBase, IPageViewModel
     public IReadOnlyList<Option> SortOptions => _sortOptions;
 
     public IReadOnlyList<Option> FilterOptions => _filterOptions;
+
+    public bool ShowExperimentalAutoBackup =>
+        _configs.Current.ShowExperimentalAutoBackup ?? _configs.Current.ExperimentalFeatures;
 
     [ObservableProperty]
     private string _selectedSort = "newest";
@@ -142,6 +146,9 @@ public sealed partial class BackupsViewModel : PageViewModelBase, IPageViewModel
         Directory.CreateDirectory(_store.Directory);
         ShellLauncher.OpenFolder(_store.Directory);
     }
+
+    [RelayCommand]
+    private void ConfigureAutoBackup() => _dialogs.ShowAutoBackup();
 
     [RelayCommand]
     private async Task Import()

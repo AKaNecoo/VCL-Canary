@@ -28,6 +28,7 @@ VCL Canary manages VPM repositories, packages and Unity projects in one place. I
 
 - **Repositories** — add VPM repositories, search packages, install and upgrade with dependency resolution
 - **Projects** — list, create, favorite and archive projects; launch Unity with a selected editor version; back up, restore and export
+- **Experimental archiving** — enable **Archive with external local packages** under **Settings → Experimental features** to show the option in the archive dialog. Preview the packages to be included. The launcher verifies the archive before removing the original project folder.
 - **Resources** — manage local unitypackages with covers, tags, search and manuals
 - **Launcher backup** — back up configuration only or everything, restore into a chosen directory
 - **Templates** — import and create `.vrclearn-template` projects
