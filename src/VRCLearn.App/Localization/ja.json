@@ -628,7 +628,7 @@
   "Settings.Update.ForkDownload": "ダウンロードページを開く",
   "Settings.Update.Available": "新しいバージョン v{0} をダウンロード",
   "Settings.Update.Channel": "更新チャンネル",
-  "Settings.Update.ChannelHint": "フォークのチャンネルでは、選んだチャンネルと、より安定したチャンネルの新版を受け取ります。更新後も設定は引き継がれます。",
+  "Settings.Update.ChannelHint": "フォークでは、選んだチャンネルとより安定したチャンネルの更新を受け取ります。設定は引き継がれます。",
   "Settings.Update.Channel.Stable": "安定版",
   "Settings.Update.Channel.Official": "公式版",
   "Settings.Update.AutoUpdateOfficialHint": "「更新をダウンロード」から公式サイトを開き、手動でインストールします。",
