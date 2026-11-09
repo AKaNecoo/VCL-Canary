@@ -58,7 +58,7 @@ public partial class MainWindow : FluentWindow
 
             if (_page is { } page)
             {
-                PlayPageTransition(page);
+                QueuePageTransition(page);
             }
         };
     }
@@ -121,6 +121,7 @@ public partial class MainWindow : FluentWindow
     private readonly List<object> _viewOrder = [];
 
     private FrameworkElement? _page;
+    private DispatcherOperation? _pageTransition;
     private bool _shown;
 
     private void ShowPage(object viewModel)
@@ -143,7 +144,7 @@ public partial class MainWindow : FluentWindow
 
         if (_shown)
         {
-            PlayPageTransition(target);
+            QueuePageTransition(target);
         }
     }
 
@@ -194,6 +195,23 @@ public partial class MainWindow : FluentWindow
             view.DataContext = null;
             PageHost.Children.Remove(view);
         }
+    }
+
+    private void QueuePageTransition(FrameworkElement page)
+    {
+        _pageTransition?.Abort();
+        if (!_animations.Enabled)
+        {
+            PlayPageTransition(page);
+            return;
+        }
+
+        // Keep the incoming view transparent until its first layout has finished.
+        page.BeginAnimation(OpacityProperty, null);
+        page.Opacity = 0;
+        PageHeader.BeginAnimation(OpacityProperty, null);
+        PageHeader.Opacity = 0;
+        _pageTransition = Dispatcher.BeginInvoke(DispatcherPriority.Loaded, new Action(() => PlayPageTransition(page)));
     }
 
     private void PlayPageTransition(FrameworkElement page)
@@ -270,6 +288,7 @@ public partial class MainWindow : FluentWindow
 
     protected override void OnClosed(EventArgs e)
     {
+        _pageTransition?.Abort();
         _legacyInstallerWindow?.Dispose();
         base.OnClosed(e);
     }
