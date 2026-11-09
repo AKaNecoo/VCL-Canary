@@ -53,7 +53,6 @@ public static class AppServices
             .AddSingleton<LocalizationService>()
             .AddSingleton<ThemeService>()
             .AddSingleton<AnimationService>()
-            .AddSingleton<ExperimentalFeaturesService>()
             .AddSingleton<NavigationService>()
             .AddSingleton<DialogService>()
             .AddSingleton<ProgressService>()

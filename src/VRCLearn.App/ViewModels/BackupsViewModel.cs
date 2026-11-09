@@ -144,9 +144,6 @@ public sealed partial class BackupsViewModel : PageViewModelBase, IPageViewModel
     }
 
     [RelayCommand]
-    private void ConfigureAutoBackup() => _dialogs.ShowAutoBackup();
-
-    [RelayCommand]
     private async Task Import()
     {
         _dialogs.ShowNotice(

@@ -78,21 +78,60 @@
                         </HeaderedContentControl.Header>
                         <ui:ToggleSwitch IsChecked="{Binding AnimationEnabled}" />
                     </HeaderedContentControl>
+                </StackPanel>
+            </ui:Card>
 
-                    <HeaderedContentControl Style="{StaticResource FieldRow}">
+            <Expander
+                x:Name="ExperimentalSection"
+                Margin="{StaticResource Gap.Small}"
+                AutomationProperties.Name="{markup:Tr Settings.Experimental}">
+                <Expander.Header>
+                    <StackPanel>
+                        <TextBlock Text="{markup:Tr Settings.Experimental}" />
+                        <TextBlock
+                            Margin="{StaticResource Gap.Tight}"
+                            Style="{StaticResource Caption}"
+                            Text="{markup:Tr Settings.ExperimentalHint}" />
+                    </StackPanel>
+                </Expander.Header>
+                <StackPanel>
+                    <HeaderedContentControl Margin="0" Style="{StaticResource FieldRow}">
                         <HeaderedContentControl.Header>
-                            <StackPanel>
-                                <TextBlock Text="{markup:Tr Settings.Experimental}" />
+                            <StackPanel Margin="0,0,12,0">
+                                <TextBlock Text="{markup:Tr Backups.AutoBackup}" />
                                 <TextBlock
                                     Margin="{StaticResource Gap.Tight}"
                                     Style="{StaticResource Caption}"
-                                    Text="{markup:Tr Settings.ExperimentalHint}" />
+                                    Text="{markup:Tr AutoBackup.EnableHint}" />
                             </StackPanel>
                         </HeaderedContentControl.Header>
-                        <ui:ToggleSwitch IsChecked="{Binding ExperimentalFeatures}" />
+                        <ui:Button
+                            MinWidth="120"
+                            Appearance="Secondary"
+                            AutomationProperties.Name="{markup:Tr Backups.AutoBackupHint}"
+                            Command="{Binding ConfigureAutoBackupCommand}"
+                            Content="{markup:Tr Settings.Experimental.Configure}" />
+                    </HeaderedContentControl>
+
+                    <HeaderedContentControl Style="{StaticResource FieldRow}">
+                        <HeaderedContentControl.Header>
+                            <StackPanel Margin="0,0,12,0">
+                                <TextBlock Text="{markup:Tr Settings.ManagerBackup.Full}" />
+                                <TextBlock
+                                    Margin="{StaticResource Gap.Tight}"
+                                    Style="{StaticResource Caption}"
+                                    Text="{markup:Tr Settings.ManagerBackup.FullHint}" />
+                            </StackPanel>
+                        </HeaderedContentControl.Header>
+                        <ui:Button
+                            MinWidth="120"
+                            Appearance="Secondary"
+                            AutomationProperties.Name="{markup:Tr Settings.ManagerBackup.Full}"
+                            Command="{Binding BackupFullCommand}"
+                            Content="{markup:Tr Settings.ManagerBackup.Backup}" />
                     </HeaderedContentControl>
                 </StackPanel>
-            </ui:Card>
+            </Expander>
 
             <TextBlock
                 x:Name="NetworkSection"
@@ -405,16 +444,10 @@
                                 <TextBlock
                                     Margin="{StaticResource Gap.Tight}"
                                     Style="{StaticResource Caption}"
-                                    Text="{markup:Tr Settings.ManagerBackupHint}" />
+                                    Text="{markup:Tr Settings.ConfigBackupHint}" />
                             </StackPanel>
                         </HeaderedContentControl.Header>
                         <StackPanel Orientation="Horizontal">
-                            <ComboBox
-                                MinWidth="150"
-                                DisplayMemberPath="Display"
-                                ItemsSource="{Binding BackupScopes}"
-                                SelectedValue="{Binding SelectedBackupScope}"
-                                SelectedValuePath="Value" />
                             <ui:Button
                                 MinWidth="88"
                                 Margin="{StaticResource Gap.Inline}"
