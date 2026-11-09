@@ -1,5 +1,5 @@
 name: 问题反馈（中文）
-description: 报告 VRCLearn Launcher 的问题，请使用中文填写。
+description: 报告 VCL Canary 的问题，请使用中文填写。
 title: "[问题] "
 labels: ["bug"]
 body:

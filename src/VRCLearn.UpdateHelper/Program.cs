@@ -149,7 +149,7 @@ internal static partial class Program
                 {
                     WriteLog(log, $"Could not restore {backup}: {rollbackError}");
                     MessageBox(IntPtr.Zero, $"Update failed. The previous installation is at:\n{backup}\n\nLog: {log}",
-                        "VRCLearn Launcher", 0x10);
+                        "VCL Canary", 0x10);
                     return null;
                 }
             }

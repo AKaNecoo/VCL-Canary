@@ -155,7 +155,7 @@ public partial class App : Application
 
         _services.GetRequiredService<ILogger<App>>()
             .LogInformation(
-                "VRCLearn Launcher {Version} started. OS: {OS}, language: {Language}, log level: {Level}, root: {Root}, config: {Config}, data: {Data}",
+                "VCL Canary {Version} started. OS: {OS}, language: {Language}, log level: {Level}, root: {Root}, config: {Config}, data: {Data}",
                 typeof(App).Assembly.GetName().Version?.ToString(3) ?? "0.0.0",
                 Environment.OSVersion.VersionString,
                 localization.CurrentLanguage,
@@ -334,7 +334,7 @@ public partial class App : Application
 
     protected override void OnExit(ExitEventArgs e)
     {
-        _services?.GetService<ILogger<App>>()?.LogInformation("VRCLearn Launcher exiting");
+        _services?.GetService<ILogger<App>>()?.LogInformation("VCL Canary exiting");
 
         _singleInstance?.Dispose();
         _services?.Dispose();

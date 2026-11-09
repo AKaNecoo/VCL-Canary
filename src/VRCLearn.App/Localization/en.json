@@ -687,7 +687,7 @@
   "Settings.CachePath": "Package cache folder",
   "Settings.CachePathHint": "Where package archives are kept. Empty means the Repos folder under the data folder. After migration the default still points at the old VCC cache; a folder owned by this app is recommended.",
   "Settings.CachePath.ConfirmTitle": "Move package cache",
-  "Settings.CachePath.ConfirmMessage": "The downloaded package archives move to:\n\n{0}\n\nFiles with the same name are overwritten. Only VRCLearn Launcher uses this location.",
+  "Settings.CachePath.ConfirmMessage": "The downloaded package archives move to:\n\n{0}\n\nFiles with the same name are overwritten. Only VCL Canary uses this location.",
   "Settings.CachePath.Reset": "Reset",
   "Settings.CachePath.ResetTitle": "Reset the package cache folder",
   "Settings.CachePath.ResetMessage": "The package cache moves back to the default location:\n\n{0}\n\nFiles with the same name are overwritten.",
