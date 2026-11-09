@@ -465,6 +465,17 @@
         <Setter Property="Visibility" Value="{Binding IsBusy, Converter={StaticResource BooleanToVisibilityConverter}}" />
     </Style>
 
+    <Style
+        x:Key="NonRefreshBusyRing"
+        BasedOn="{StaticResource BusyRing}"
+        TargetType="ui:ProgressRing">
+        <Style.Triggers>
+            <DataTrigger Binding="{Binding RefreshCommand.IsRunning}" Value="True">
+                <Setter Property="Visibility" Value="Collapsed" />
+            </DataTrigger>
+        </Style.Triggers>
+    </Style>
+
     <Style x:Key="DialogRow" TargetType="StackPanel">
         <Setter Property="Margin" Value="{StaticResource Gap.Large}" />
         <Setter Property="HorizontalAlignment" Value="Right" />
