@@ -1,7 +1,7 @@
 <div align="center">
   <img src="docs/images/logo.png" alt="VCL Canary" width="120">
   <h1>VCL Canary</h1>
-  <p>VCL Canary 是 AKaNecoo 独立维护的 <a href="https://github.com/VRLearn-Official/VRCLearn_Launcher">VRCLearn Launcher 社区分支</a>。原项目由 VRLearn 开发。VCL Canary 为 Windows 上的 VRChat 工程和 VPM 包管理器，基于 .NET 10 与 WPF。</p>
+  <p>VCL Canary 是 AKaNecoo 独立维护的 <a href="https://github.com/VRLearn-Official/VRCLearn_Launcher">VRCLearn Launcher</a> 社区分支。原项目由 VRLearn 开发。VCL Canary 为 Windows 上的 VRChat 工程和 VPM 包管理器，基于 .NET 10 与 WPF。</p>
 
   [下载](https://github.com/AKaNecoo/VCL-Canary/releases) · [English](README.en.md) · [日本語](README.ja.md) · [问题反馈](https://github.com/AKaNecoo/VCL-Canary/issues)
 </div>
