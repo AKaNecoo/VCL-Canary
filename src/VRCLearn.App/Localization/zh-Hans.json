@@ -735,7 +735,6 @@
   "Plugins.Sort.Installed": "安装时间",
   "Plugins.Sort.Enabled": "启用状态",
   "Plugins.Install": "从文件安装",
-  "Plugins.OpenDirectory": "打开插件目录",
   "Plugins.Open": "打开",
   "Plugins.Uninstall": "卸载",
   "Plugins.OpenData": "打开数据目录",

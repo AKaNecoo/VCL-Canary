@@ -732,7 +732,6 @@
   "Plugins.Sort.Installed": "Install time",
   "Plugins.Sort.Enabled": "Enabled state",
   "Plugins.Install": "Install from file",
-  "Plugins.OpenDirectory": "Open plugin folder",
   "Plugins.Open": "Open",
   "Plugins.Uninstall": "Uninstall",
   "Plugins.OpenData": "Open data folder",

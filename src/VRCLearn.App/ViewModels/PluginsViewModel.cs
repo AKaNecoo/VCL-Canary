@@ -530,13 +530,6 @@ public sealed partial class PluginsViewModel : PageViewModelBase
             or IOException or UnauthorizedAccessException;
 
 
-    [RelayCommand]
-    private void OpenPluginDirectory()
-    {
-        Directory.CreateDirectory(_paths.PluginsDirectory);
-        ShellLauncher.OpenFolder(_paths.PluginsDirectory);
-    }
-
     private void Rebuild()
     {
         var snapshots = _manager.GetSnapshots();

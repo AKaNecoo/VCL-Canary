@@ -54,7 +54,7 @@
                             <RowDefinition Height="*" />
                         </Grid.RowDefinitions>
                         <TabPanel
-                            Margin="32,40,220,0"
+                            Margin="32,40,32,0"
                             HorizontalAlignment="Left"
                             IsItemsHost="True"
                             KeyboardNavigation.TabIndex="0" />
@@ -106,11 +106,12 @@
                                 Content="{markup:Tr Plugins.CheckUpdates}"
                                 IsEnabled="{Binding CanCheckUpdates}" />
                             <ui:Button
+                                x:Name="InstallPluginFileButton"
                                 Grid.Column="3"
                                 Margin="{StaticResource Gap.Inline}"
                                 Appearance="Secondary"
-                                Command="{Binding OpenPluginDirectoryCommand}"
-                                Content="{markup:Tr Plugins.OpenDirectory}" />
+                                Command="{Binding InstallFromFileCommand}"
+                                Content="{markup:Tr Plugins.Install}" />
                             <ui:ProgressRing
                                 Grid.Column="4"
                                 Margin="{StaticResource Gap.Inline}"
@@ -301,6 +302,13 @@
                     </Grid.RowDefinitions>
                     <DockPanel Margin="32,16,32,0">
                         <ui:Button
+                            x:Name="InstallMarketFileButton"
+                            Margin="{StaticResource Gap.Inline}"
+                            Appearance="Secondary"
+                            Command="{Binding InstallFromFileCommand}"
+                            Content="{markup:Tr Plugins.Install}"
+                            DockPanel.Dock="Right" />
+                        <ui:Button
                             Margin="{StaticResource Gap.Inline}"
                             Appearance="Secondary"
                             Command="{Binding RefreshCatalogCommand}"
@@ -403,13 +411,5 @@
             </TabItem>
         </TabControl>
 
-        <ui:Button
-            x:Name="InstallPluginFileButton"
-            Margin="0,40,32,0"
-            HorizontalAlignment="Right"
-            VerticalAlignment="Top"
-            Appearance="Secondary"
-            Command="{Binding InstallFromFileCommand}"
-            Content="{markup:Tr Plugins.Install}" />
     </Grid>
 </UserControl>

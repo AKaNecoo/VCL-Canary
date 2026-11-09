@@ -732,7 +732,6 @@
   "Plugins.Sort.Installed": "インストール日時",
   "Plugins.Sort.Enabled": "有効状態",
   "Plugins.Install": "ファイルからインストール",
-  "Plugins.OpenDirectory": "プラグインフォルダーを開く",
   "Plugins.Open": "開く",
   "Plugins.Uninstall": "アンインストール",
   "Plugins.OpenData": "データフォルダーを開く",
