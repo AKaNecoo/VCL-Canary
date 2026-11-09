@@ -104,9 +104,14 @@ public sealed partial class UpdateViewModel : ObservableObject
         };
         _configs.Changed += (_, _) =>
         {
-            OnPropertyChanged(nameof(AutoUpdateEnabled));
-            OnPropertyChanged(nameof(SelectedUpdateChannel));
-            RefreshUpdateRoute();
+            if (Application.Current?.Dispatcher is { } dispatcher && !dispatcher.CheckAccess())
+            {
+                _ = dispatcher.InvokeAsync(RefreshUpdateSettings);
+            }
+            else
+            {
+                RefreshUpdateSettings();
+            }
         };
     }
 
@@ -267,6 +272,13 @@ public sealed partial class UpdateViewModel : ObservableObject
         return _service.UsesOfficialDownloadPage || (!_proxy.IsConfigured
             && (language.Equals("zh", StringComparison.OrdinalIgnoreCase)
                 || language.StartsWith("zh-", StringComparison.OrdinalIgnoreCase)));
+    }
+
+    private void RefreshUpdateSettings()
+    {
+        OnPropertyChanged(nameof(AutoUpdateEnabled));
+        OnPropertyChanged(nameof(SelectedUpdateChannel));
+        RefreshUpdateRoute();
     }
 
     private void RefreshUpdateRoute()

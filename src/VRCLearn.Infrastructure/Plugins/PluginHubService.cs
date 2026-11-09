@@ -14,11 +14,28 @@ public sealed record PluginHubCheckResult(
 
 public sealed class PluginHubService(
     HttpClient http,
+    PluginMarketClient market,
     AppPaths paths,
     PluginHubStateStore states,
     ILogger<PluginHubService> logger)
 {
     public static TimeSpan CheckInterval { get; } = TimeSpan.FromHours(24);
+
+    public async Task<PluginHubIndex> BrowseAsync(CancellationToken cancellationToken)
+    {
+        var response = await FetchIndexAsync(PluginMarketClient.Market, cancellationToken).ConfigureAwait(false);
+        if (response.Outcome != RemoteTextOutcome.Fetched)
+        {
+            throw new HttpRequestException(response.Detail);
+        }
+
+        if (!PluginHubIndexParser.TryParse(response.Text, out var index, out var error))
+        {
+            throw new InvalidDataException(error);
+        }
+
+        return index!;
+    }
 
     public async Task<PluginHubCheckResult> CheckAsync(
         IReadOnlyList<PluginHubTarget> installed,
@@ -110,8 +127,7 @@ public sealed class PluginHubService(
             headers["If-None-Match"] = entry.ETag;
         }
 
-        var result = await RemoteTextFile
-            .GetAsync(http, PluginHubEndpoint.IndexUri(hub).AbsoluteUri, cancellationToken, headers, PluginHubIndexParser.MaxChars)
+        var result = await FetchIndexAsync(hub, cancellationToken, headers)
             .ConfigureAwait(false);
 
         entry.CheckedAt = now;
@@ -146,6 +162,17 @@ public sealed class PluginHubService(
         }
 
         return entry;
+    }
+
+    private Task<RemoteText> FetchIndexAsync(
+        string hub,
+        CancellationToken cancellationToken,
+        IReadOnlyDictionary<string, string>? headers = null)
+    {
+        var uri = PluginHubEndpoint.IndexUri(hub);
+        return RemoteTextFile.GetAsync(
+            PluginMarketClient.Matches(uri) ? market : http,
+            uri.AbsoluteUri, cancellationToken, headers, PluginHubIndexParser.MaxChars);
     }
 
     private static IEnumerable<PluginHubCachedRelease> ToCached(PluginHubEntry entry)

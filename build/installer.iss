@@ -1,6 +1,8 @@
 ﻿#define MyAppName "VCL Canary"
 #define MyLegacyName "VRCLearn Launcher"
 #define MyAppExeName "VRCLearnLauncher.exe"
+#define MyIconSource "..\src\VRCLearn.App\Assets\app.ico"
+#define MyShortcutIcon "VCL-Canary.ico"
 #define MyAppMutex "VRCLearnLauncher.SingleInstance"
 
 #ifndef MyAppVersion
@@ -32,7 +34,7 @@ ArchitecturesAllowed=x64compatible
 ArchitecturesInstallIn64BitMode=x64compatible
 CloseApplications=yes
 RestartApplications=no
-SetupIconFile=..\src\VRCLearn.App\Assets\app.ico
+SetupIconFile={#MyIconSource}
 UninstallDisplayIcon={app}\{#MyAppExeName}
 VersionInfoVersion={#MyAppFileVersion}
 VersionInfoProductName={#MyAppName}
@@ -58,16 +60,19 @@ Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{
 Type: filesandordirs; Name: "{app}\*"
 Type: files; Name: "{autodesktop}\{#MyLegacyName}.lnk"; Check: IsLegacyLauncherShortcut('{autodesktop}\{#MyLegacyName}.lnk')
 Type: files; Name: "{autoprograms}\{#MyLegacyName}\{#MyLegacyName}.lnk"; Check: IsLegacyLauncherShortcut('{autoprograms}\{#MyLegacyName}\{#MyLegacyName}.lnk')
+Type: files; Name: "{group}\{#MyLegacyName}.lnk"; Check: IsLegacyLauncherShortcut('{group}\{#MyLegacyName}.lnk')
 
 [Files]
 Source: "..\artifacts\publish\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
+Source: "{#MyIconSource}"; DestDir: "{app}"; DestName: "{#MyShortcutIcon}"; Flags: ignoreversion
 
 [InstallDelete]
 Type: filesandordirs; Name: "{app}\Plugins"
 
 [Icons]
-Name: "{group}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"
-Name: "{autodesktop}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; Tasks: desktopicon
+; Use a distinct icon path so Windows does not reuse the official executable's cached icon.
+Name: "{group}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; IconFilename: "{app}\{#MyShortcutIcon}"
+Name: "{autodesktop}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; IconFilename: "{app}\{#MyShortcutIcon}"; Tasks: desktopicon
 
 [Run]
 Filename: "{app}\{#MyAppExeName}"; Description: "{cm:LaunchProgram,{#MyAppName}}"; Flags: nowait postinstall skipifsilent

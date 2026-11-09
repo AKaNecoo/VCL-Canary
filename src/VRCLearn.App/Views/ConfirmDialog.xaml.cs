@@ -1,4 +1,5 @@
 ﻿using System.Windows;
+using System.Windows.Automation;
 using Wpf.Ui.Controls;
 
 namespace VRCLearn.App.Views;
@@ -50,6 +51,27 @@ public partial class ConfirmDialog : DialogWindowBase
     }
 
     public bool ExtraClicked { get; private set; }
+
+    internal bool IncludesLocalPackages => IncludeLocalPackagesCheckBox.IsChecked == true;
+
+    internal void OfferLocalPackages(string label, string previewText)
+    {
+        IncludeLocalPackagesLabel.Text = label;
+        AutomationProperties.SetName(IncludeLocalPackagesCheckBox, label);
+        var archiveText = ConfirmButton.Content;
+        var archiveAppearance = ConfirmButton.Appearance;
+        IncludeLocalPackagesCheckBox.Checked += (_, _) =>
+        {
+            ConfirmButton.Content = previewText;
+            ConfirmButton.Appearance = ControlAppearance.Primary;
+        };
+        IncludeLocalPackagesCheckBox.Unchecked += (_, _) =>
+        {
+            ConfirmButton.Content = archiveText;
+            ConfirmButton.Appearance = archiveAppearance;
+        };
+        IncludeLocalPackagesCheckBox.Visibility = Visibility.Visible;
+    }
 
     private void OnExtraClick(object sender, RoutedEventArgs e)
     {

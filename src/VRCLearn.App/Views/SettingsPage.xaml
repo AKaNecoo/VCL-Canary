@@ -78,21 +78,69 @@
                         </HeaderedContentControl.Header>
                         <ui:ToggleSwitch IsChecked="{Binding AnimationEnabled}" />
                     </HeaderedContentControl>
+                </StackPanel>
+            </ui:Card>
 
-                    <HeaderedContentControl Style="{StaticResource FieldRow}">
+            <Expander
+                x:Name="ExperimentalSection"
+                Margin="{StaticResource Gap.Small}"
+                AutomationProperties.Name="{markup:Tr Settings.Experimental}">
+                <Expander.Header>
+                    <StackPanel>
+                        <TextBlock Text="{markup:Tr Settings.Experimental}" />
+                        <TextBlock
+                            Margin="{StaticResource Gap.Tight}"
+                            Style="{StaticResource Caption}"
+                            Text="{markup:Tr Settings.ExperimentalHint}" />
+                    </StackPanel>
+                </Expander.Header>
+                <StackPanel>
+                    <HeaderedContentControl Margin="0" Style="{StaticResource FieldRow}">
                         <HeaderedContentControl.Header>
-                            <StackPanel>
-                                <TextBlock Text="{markup:Tr Settings.Experimental}" />
+                            <StackPanel Margin="0,0,12,0">
+                                <TextBlock Text="{markup:Tr Backups.AutoBackup}" />
                                 <TextBlock
                                     Margin="{StaticResource Gap.Tight}"
                                     Style="{StaticResource Caption}"
-                                    Text="{markup:Tr Settings.ExperimentalHint}" />
+                                    Text="{markup:Tr Settings.Experimental.AutoBackupHint}" />
                             </StackPanel>
                         </HeaderedContentControl.Header>
-                        <ui:ToggleSwitch IsChecked="{Binding ExperimentalFeatures}" />
+                        <ui:ToggleSwitch
+                            AutomationProperties.Name="{markup:Tr Backups.AutoBackup}"
+                            IsChecked="{Binding ShowExperimentalAutoBackup, Mode=TwoWay}" />
+                    </HeaderedContentControl>
+
+                    <HeaderedContentControl Style="{StaticResource FieldRow}">
+                        <HeaderedContentControl.Header>
+                            <StackPanel Margin="0,0,12,0">
+                                <TextBlock Text="{markup:Tr Settings.Experimental.FullBackup}" />
+                                <TextBlock
+                                    Margin="{StaticResource Gap.Tight}"
+                                    Style="{StaticResource Caption}"
+                                    Text="{markup:Tr Settings.Experimental.FullBackupHint}" />
+                            </StackPanel>
+                        </HeaderedContentControl.Header>
+                        <ui:ToggleSwitch
+                            AutomationProperties.Name="{markup:Tr Settings.Experimental.FullBackup}"
+                            IsChecked="{Binding ShowExperimentalFullBackup, Mode=TwoWay}" />
+                    </HeaderedContentControl>
+
+                    <HeaderedContentControl Style="{StaticResource FieldRow}">
+                        <HeaderedContentControl.Header>
+                            <StackPanel Margin="0,0,12,0">
+                                <TextBlock Text="{markup:Tr Settings.Experimental.ArchiveLocalPackages}" />
+                                <TextBlock
+                                    Margin="{StaticResource Gap.Tight}"
+                                    Style="{StaticResource Caption}"
+                                    Text="{markup:Tr Settings.Experimental.ArchiveLocalPackagesHint}" />
+                            </StackPanel>
+                        </HeaderedContentControl.Header>
+                        <ui:ToggleSwitch
+                            AutomationProperties.Name="{markup:Tr Settings.Experimental.ArchiveLocalPackages}"
+                            IsChecked="{Binding ShowArchiveLocalPackages, Mode=TwoWay}" />
                     </HeaderedContentControl>
                 </StackPanel>
-            </ui:Card>
+            </Expander>
 
             <TextBlock
                 x:Name="NetworkSection"
@@ -405,12 +453,13 @@
                                 <TextBlock
                                     Margin="{StaticResource Gap.Tight}"
                                     Style="{StaticResource Caption}"
-                                    Text="{markup:Tr Settings.ManagerBackupHint}" />
+                                    Text="{markup:Tr Settings.ConfigBackupHint}" />
                             </StackPanel>
                         </HeaderedContentControl.Header>
                         <StackPanel Orientation="Horizontal">
                             <ComboBox
                                 MinWidth="150"
+                                AutomationProperties.Name="{markup:Tr Settings.ManagerBackup.Scope}"
                                 DisplayMemberPath="Display"
                                 ItemsSource="{Binding BackupScopes}"
                                 SelectedValue="{Binding SelectedBackupScope}"
@@ -618,10 +667,9 @@
                         Style="{StaticResource FieldRow}"
                         Visibility="{Binding Update.HasUpdateChannels, Converter={StaticResource BooleanToVisibilityConverter}}">
                         <HeaderedContentControl.Header>
-                            <StackPanel>
+                            <StackPanel Margin="0,0,12,0">
                                 <TextBlock Text="{markup:Tr Settings.Update.Channel}" />
                                 <TextBlock
-                                    MaxWidth="360"
                                     Margin="{StaticResource Gap.Tight}"
                                     HorizontalAlignment="Left"
                                     Style="{StaticResource Caption}"
@@ -641,10 +689,9 @@
 
                     <HeaderedContentControl Style="{StaticResource FieldRow}">
                         <HeaderedContentControl.Header>
-                            <StackPanel>
+                            <StackPanel Margin="0,0,12,0">
                                 <TextBlock Text="{markup:Tr Settings.Update.AutoUpdate}" />
                                 <TextBlock
-                                    MaxWidth="360"
                                     Margin="{StaticResource Gap.Tight}"
                                     HorizontalAlignment="Left"
                                     Style="{StaticResource Caption}"

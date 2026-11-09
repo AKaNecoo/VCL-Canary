@@ -67,7 +67,7 @@
                     Content="{markup:Tr Backups.AutoBackup}"
                     Icon="{ui:SymbolIcon Settings24}"
                     ToolTip="{markup:Tr Backups.AutoBackupHint}"
-                    Visibility="{markup:ExperimentalVisibility}" />
+                    Visibility="{Binding ShowExperimentalAutoBackup, Converter={StaticResource BooleanToVisibilityConverter}}" />
 
                 <ui:ProgressRing
                     Grid.Column="6"

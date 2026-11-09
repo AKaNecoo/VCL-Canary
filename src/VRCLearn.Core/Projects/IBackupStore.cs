@@ -9,7 +9,8 @@ public interface IBackupStore
     Task<BackupRecord> CreateAsync(
         BackupCreateRequest request,
         Func<Stream, CancellationToken, Task> write,
-        CancellationToken cancellationToken);
+        CancellationToken cancellationToken,
+        Func<Stream, CancellationToken, Task>? verify = null);
 
     Stream? OpenOrNull(string absolutePath);
 

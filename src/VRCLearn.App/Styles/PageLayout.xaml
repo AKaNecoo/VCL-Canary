@@ -422,6 +422,38 @@
         <Setter Property="Appearance" Value="Secondary" />
     </Style>
 
+    <!-- The button's Tag supplies the refresh state. The icon slot stays the same size in both states. -->
+    <Style
+        x:Key="RefreshToolbarButton"
+        BasedOn="{StaticResource ToolbarButton}"
+        TargetType="ui:Button">
+        <Setter Property="ContentTemplate">
+            <Setter.Value>
+                <DataTemplate>
+                    <StackPanel Orientation="Horizontal">
+                        <Grid Width="14" Height="14" Margin="0,0,6,0" VerticalAlignment="Center">
+                            <ui:SymbolIcon
+                                FontSize="14"
+                                Symbol="ArrowClockwise24"
+                                Visibility="{Binding Tag, RelativeSource={RelativeSource AncestorType=ui:Button}, Converter={StaticResource InverseBooleanToVisibilityConverter}}" />
+                            <ui:ProgressRing
+                                Width="14"
+                                Height="14"
+                                IsIndeterminate="True"
+                                Visibility="{Binding Tag, RelativeSource={RelativeSource AncestorType=ui:Button}, Converter={StaticResource BooleanToVisibilityConverter}}" />
+                        </Grid>
+                        <TextBlock VerticalAlignment="Center" Text="{Binding}" />
+                    </StackPanel>
+                </DataTemplate>
+            </Setter.Value>
+        </Setter>
+        <Style.Triggers>
+            <DataTrigger Binding="{Binding Tag, RelativeSource={RelativeSource Self}}" Value="True">
+                <Setter Property="IsEnabled" Value="False" />
+            </DataTrigger>
+        </Style.Triggers>
+    </Style>
+
     <Style
         x:Key="BusyRing"
         BasedOn="{StaticResource {x:Type ui:ProgressRing}}"
@@ -431,6 +463,17 @@
         <Setter Property="IsIndeterminate" Value="True" />
         <Setter Property="VerticalAlignment" Value="Center" />
         <Setter Property="Visibility" Value="{Binding IsBusy, Converter={StaticResource BooleanToVisibilityConverter}}" />
+    </Style>
+
+    <Style
+        x:Key="NonRefreshBusyRing"
+        BasedOn="{StaticResource BusyRing}"
+        TargetType="ui:ProgressRing">
+        <Style.Triggers>
+            <DataTrigger Binding="{Binding RefreshCommand.IsRunning}" Value="True">
+                <Setter Property="Visibility" Value="Collapsed" />
+            </DataTrigger>
+        </Style.Triggers>
     </Style>
 
     <Style x:Key="DialogRow" TargetType="StackPanel">

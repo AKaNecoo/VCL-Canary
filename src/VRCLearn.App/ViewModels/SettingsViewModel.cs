@@ -113,12 +113,13 @@ public sealed partial class SettingsViewModel : ObservableObject
 
         _selectedButtonColor = _store.Current.ButtonColor;
         _animationEnabled = _store.Current.AnimationEnabled;
+        _showExperimentalAutoBackup = _store.Current.ShowExperimentalAutoBackup ?? _store.Current.ExperimentalFeatures;
+        _showExperimentalFullBackup = _store.Current.ShowExperimentalFullBackup ?? _store.Current.ExperimentalFeatures;
+        _showArchiveLocalPackages = _store.Current.ShowArchiveLocalPackages;
         _proxyEnabled = _store.Current.ProxyEnabled;
 
         (_proxyScheme, _proxyHost, _proxyPort) = ProxyAddress.Split(_store.Current.ProxyUrl);
         _selectedBackupFormat = _store.Current.BackupFormat;
-        _selectedBackupScope = "config";
-        _experimentalFeatures = _store.Current.ExperimentalFeatures;
         _selectedLogLevel = _store.Current.LogsLevel;
         _logsRetentionCount = _store.Current.LogsRetentionCount;
         _showPrereleasePackages = _settings.Current.ShowPrereleasePackages;
@@ -146,40 +147,44 @@ public sealed partial class SettingsViewModel : ObservableObject
 
     public IReadOnlyList<Option> BackupFormats => _backupFormats;
 
-    public IReadOnlyList<Option> BackupScopes =>
-        ExperimentalFeatures ? _backupScopes : [_backupScopes[0]];
+    [ObservableProperty]
+    private bool _showExperimentalAutoBackup;
+
+    partial void OnShowExperimentalAutoBackupChanged(bool value)
+    {
+        _store.Current.ShowExperimentalAutoBackup = value;
+        _store.Save();
+    }
 
     [ObservableProperty]
-    private bool _experimentalFeatures;
+    private bool _showExperimentalFullBackup;
 
-    partial void OnExperimentalFeaturesChanged(bool value)
+    partial void OnShowExperimentalFullBackupChanged(bool value)
     {
-        _store.Current.ExperimentalFeatures = value;
+        _store.Current.ShowExperimentalFullBackup = value;
         _store.Save();
-
-        if (!value && SelectedBackupScope == "full")
+        if (!value)
         {
             SelectedBackupScope = "config";
         }
 
         OnPropertyChanged(nameof(BackupScopes));
-
-        _logger.LogInformation("实验性功能：{Value}", value);
     }
 
     [ObservableProperty]
-    private string _selectedBackupScope;
+    private bool _showArchiveLocalPackages;
 
-    partial void OnSelectedBackupScopeChanged(string value)
+    partial void OnShowArchiveLocalPackagesChanged(bool value)
     {
-        if (value == "full")
-        {
-            _dialogs.ShowNotice(
-                _localization["Settings.ManagerBackup.FullWarningTitle"],
-                _localization["Settings.ManagerBackup.FullWarning"],
-                _localization["Dialog.Confirm"]);
-        }
+        _store.Current.ShowArchiveLocalPackages = value;
+        _store.Save();
     }
+
+    public IReadOnlyList<Option> BackupScopes =>
+        ShowExperimentalFullBackup ? _backupScopes : [_backupScopes[0]];
+
+    [ObservableProperty]
+    private string _selectedBackupScope = "config";
 
     public string DataDirectory => _paths.Root;
 
@@ -386,27 +391,28 @@ public sealed partial class SettingsViewModel : ObservableObject
     [RelayCommand]
     private async Task Backup()
     {
-        var scope = SelectedBackupScope == "full" ? BackupScope.Full : BackupScope.Config;
-        var full = scope == BackupScope.Full;
+        if (_configBusy)
+        {
+            _toasts.Show(_localization["Settings.ConfigBusy"]);
+            return;
+        }
+
+        var full = ShowExperimentalFullBackup && SelectedBackupScope == "full";
+        var scope = full ? BackupScope.Full : BackupScope.Config;
+        var title = _localization[full ? "Settings.Experimental.FullBackup" : "Settings.ConfigBackup"];
 
         _dialogs.ShowNotice(
-            _localization["Settings.ConfigBackup"],
-            _localization[full ? "Settings.ManagerBackup.FullHint" : "Settings.ConfigBackupHint"],
+            title,
+            _localization[full ? "Settings.ManagerBackup.FullWarning" : "Settings.ConfigBackupHint"],
             _localization["Dialog.Confirm"]);
 
         var path = _dialogs.PickSaveFile(
-            _localization["Settings.ConfigBackup"],
+            title,
             $"VRCLearn-{(full ? "full" : "config")}-{DateTime.Now:yyyyMMdd-HHmmss}.zip",
             "*.zip|*.zip|*|*");
 
         if (path is null)
         {
-            return;
-        }
-
-        if (_configBusy)
-        {
-            _toasts.Show(_localization["Settings.ConfigBusy"]);
             return;
         }
 

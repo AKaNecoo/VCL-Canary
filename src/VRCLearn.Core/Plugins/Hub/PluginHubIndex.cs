@@ -12,6 +12,8 @@ public sealed class PluginHubIndex
 public sealed class PluginHubEntry
 {
     public string Id { get; init; } = "";
+    public PluginLocalizedText Name { get; init; } = PluginLocalizedText.Empty;
+    public PluginLocalizedText Description { get; init; } = PluginLocalizedText.Empty;
 
     public int ApiVersion { get; init; }
 

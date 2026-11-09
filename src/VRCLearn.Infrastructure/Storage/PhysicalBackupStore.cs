@@ -30,7 +30,8 @@ public sealed class PhysicalBackupStore(
     public async Task<BackupRecord> CreateAsync(
         BackupCreateRequest request,
         Func<Stream, CancellationToken, Task> write,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        Func<Stream, CancellationToken, Task>? verify = null)
     {
         var directory = Path.GetFullPath(Directory);
         System.IO.Directory.CreateDirectory(directory);
@@ -60,6 +61,12 @@ public sealed class PhysicalBackupStore(
                 }
 
                 digest = hash.GetHashAndReset();
+            }
+
+            if (verify is not null)
+            {
+                await using var source = File.OpenRead(tempPath);
+                await verify(source, cancellationToken).ConfigureAwait(false);
             }
 
             var shortHash = ProjectBackup.ShortHash(digest);

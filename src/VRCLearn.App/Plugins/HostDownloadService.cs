@@ -5,6 +5,7 @@ using System.Net.Http.Headers;
 using System.Security.Cryptography;
 using Microsoft.Extensions.Logging;
 using VRCLearn.Infrastructure.Http;
+using VRCLearn.Infrastructure.Plugins;
 using VRCLearn.Plugin.Sdk;
 
 namespace VRCLearn.App.Plugins;
@@ -18,11 +19,13 @@ public sealed class HostDownloadService : IDownloadService, IDisposable
     private const int MaxAttempts = 4;
 
     private readonly HttpClient _http;
+    private readonly PluginMarketClient _market;
     private readonly ILogger<HostDownloadService> _logger;
     private long _resumeAt;
 
-    public HostDownloadService(MutableProxy proxy, ILogger<HostDownloadService> logger)
+    public HostDownloadService(MutableProxy proxy, PluginMarketClient market, ILogger<HostDownloadService> logger)
     {
+        _market = market;
         _logger = logger;
         _http = new HttpClient(new SocketsHttpHandler
         {
@@ -37,10 +40,17 @@ public sealed class HostDownloadService : IDownloadService, IDisposable
         _http.DefaultRequestHeaders.UserAgent.ParseAdd("VRCLearn");
     }
 
-    public async Task DownloadAsync(
+    public Task DownloadAsync(
         DownloadRequest request,
         IProgress<DownloadProgress>? progress,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken) =>
+        DownloadAsync(request, progress, cancellationToken, long.MaxValue);
+
+    internal async Task DownloadAsync(
+        DownloadRequest request,
+        IProgress<DownloadProgress>? progress,
+        CancellationToken cancellationToken,
+        long maxBytes)
     {
         if (request.Url is null || request.Url.Scheme != Uri.UriSchemeHttps)
         {
@@ -61,10 +71,10 @@ public sealed class HostDownloadService : IDownloadService, IDisposable
 
         try
         {
-            if (!await TryDownloadParallelAsync(request.Url, temporary, progress, cancellationToken)
+            if (!await TryDownloadParallelAsync(request.Url, temporary, progress, maxBytes, cancellationToken)
                     .ConfigureAwait(false))
             {
-                await DownloadSingleAsync(request.Url, temporary, progress, cancellationToken)
+                await DownloadSingleAsync(request.Url, temporary, progress, maxBytes, cancellationToken)
                     .ConfigureAwait(false);
             }
 
@@ -101,6 +111,7 @@ public sealed class HostDownloadService : IDownloadService, IDisposable
         Uri url,
         string path,
         IProgress<DownloadProgress>? progress,
+        long maxBytes,
         CancellationToken cancellationToken)
     {
         long length;
@@ -116,6 +127,7 @@ public sealed class HostDownloadService : IDownloadService, IDisposable
                 return false;
             }
 
+            EnsureDownloadSize(total, maxBytes);
             length = total;
         }
         catch (HttpRequestException)
@@ -172,6 +184,11 @@ public sealed class HostDownloadService : IDownloadService, IDisposable
                             break;
                         }
 
+                        if (read > end + 1 - offset)
+                        {
+                            throw new InvalidDataException("server exceeded the requested byte range");
+                        }
+
                         await RandomAccess
                             .WriteAsync(handle, buffer.AsMemory(0, read), offset, token)
                             .ConfigureAwait(false);
@@ -225,7 +242,8 @@ public sealed class HostDownloadService : IDownloadService, IDisposable
             using var message = new HttpRequestMessage(HttpMethod.Get, url);
             message.Headers.Range = range;
 
-            var response = await _http
+            var client = PluginMarketClient.Matches(url) ? _market : _http;
+            var response = await client
                 .SendAsync(message, HttpCompletionOption.ResponseHeadersRead, cancellationToken)
                 .ConfigureAwait(false);
 
@@ -315,11 +333,16 @@ public sealed class HostDownloadService : IDownloadService, IDisposable
         Uri url,
         string path,
         IProgress<DownloadProgress>? progress,
+        long maxBytes,
         CancellationToken cancellationToken)
     {
         using var response = await SendAsync(url, null, cancellationToken).ConfigureAwait(false);
 
         var total = response.Content.Headers.ContentLength;
+        if (total is { } length)
+        {
+            EnsureDownloadSize(length, maxBytes);
+        }
 
         await using var source = await response.Content
             .ReadAsStreamAsync(cancellationToken)
@@ -346,6 +369,7 @@ public sealed class HostDownloadService : IDownloadService, IDisposable
                     break;
                 }
 
+                EnsureDownloadSize(received + read, maxBytes);
                 await destination
                     .WriteAsync(buffer.AsMemory(0, read), cancellationToken)
                     .ConfigureAwait(false);
@@ -364,6 +388,14 @@ public sealed class HostDownloadService : IDownloadService, IDisposable
         }
 
         progress?.Report(new DownloadProgress(received, total ?? received));
+    }
+
+    private static void EnsureDownloadSize(long size, long maximum)
+    {
+        if (size > maximum)
+        {
+            throw new InvalidDataException($"download exceeds the {maximum} byte limit");
+        }
     }
 
     public void Dispose() => _http.Dispose();

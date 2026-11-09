@@ -55,27 +55,45 @@
                                 FontWeight="SemiBold"
                                 Foreground="{DynamicResource TextFillColorSecondaryBrush}"
                                 TextWrapping="Wrap" />
-                            <TextBlock
-                                x:Name="DetailBodyText"
+                            <ScrollViewer
+                                MaxHeight="180"
                                 Margin="{StaticResource Gap.Tight}"
-                                Style="{StaticResource Caption}" />
+                                VerticalScrollBarVisibility="Auto">
+                                <TextBlock x:Name="DetailBodyText" Style="{StaticResource Caption}" />
+                            </ScrollViewer>
                         </StackPanel>
                     </Border>
                 </StackPanel>
             </Grid>
 
-            <StackPanel Style="{StaticResource DialogRow}">
-                <ui:Button
-                    x:Name="ExtraButton"
-                    Click="OnExtraClick"
-                    Style="{StaticResource DialogButton}" />
-                <ui:Button
-                    x:Name="ConfirmButton"
-                    Margin="{StaticResource Gap.Inline}"
-                    Appearance="Primary"
-                    Click="OnConfirmClick"
-                    Style="{StaticResource DialogButton}" />
-            </StackPanel>
+            <Grid Margin="{StaticResource Gap.Large}">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+                <CheckBox
+                    x:Name="IncludeLocalPackagesCheckBox"
+                    Margin="0,0,12,0"
+                    VerticalAlignment="Center"
+                    Visibility="Collapsed">
+                    <TextBlock x:Name="IncludeLocalPackagesLabel" TextWrapping="Wrap" />
+                </CheckBox>
+                <StackPanel
+                    Grid.Column="1"
+                    Margin="0"
+                    Style="{StaticResource DialogRow}">
+                    <ui:Button
+                        x:Name="ExtraButton"
+                        Click="OnExtraClick"
+                        Style="{StaticResource DialogButton}" />
+                    <ui:Button
+                        x:Name="ConfirmButton"
+                        Margin="{StaticResource Gap.Inline}"
+                        Appearance="Primary"
+                        Click="OnConfirmClick"
+                        Style="{StaticResource DialogButton}" />
+                </StackPanel>
+            </Grid>
         </StackPanel>
     </views:DialogChrome>
 </views:DialogWindowBase>
