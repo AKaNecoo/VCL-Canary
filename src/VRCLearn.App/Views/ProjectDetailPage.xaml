@@ -16,125 +16,131 @@
                 <DataTrigger Binding="{Binding HasPendingChanges}" Value="True">
                     <Setter Property="IsEnabled" Value="False" />
                 </DataTrigger>
-                <DataTrigger Binding="{Binding Installed.Count}" Value="0">
+            </Style.Triggers>
+        </Style>
+        <Style x:Key="InstalledBatchPlanButton" BasedOn="{StaticResource BatchPlanButton}" TargetType="ui:Button">
+            <Style.Triggers>
+                <DataTrigger Binding="{Binding HasInstalledPackages}" Value="False">
                     <Setter Property="IsEnabled" Value="False" />
                 </DataTrigger>
             </Style.Triggers>
         </Style>
-
-        <DataTemplate DataType="{x:Type viewModels:InstalledPackageViewModel}">
+        <Style x:Key="InstallSelectedButton" BasedOn="{StaticResource BatchPlanButton}" TargetType="ui:Button">
+            <Style.Triggers>
+                <DataTrigger Binding="{Binding CanInstallSelected}" Value="False">
+                    <Setter Property="IsEnabled" Value="False" />
+                </DataTrigger>
+            </Style.Triggers>
+        </Style>
+        <Style x:Key="UpgradeSelectedButton" BasedOn="{StaticResource BatchPlanButton}" TargetType="ui:Button">
+            <Style.Triggers>
+                <DataTrigger Binding="{Binding CanUpgradeSelected}" Value="False">
+                    <Setter Property="IsEnabled" Value="False" />
+                </DataTrigger>
+            </Style.Triggers>
+        </Style>
+        <DataTemplate DataType="{x:Type viewModels:PackageRowViewModel}">
             <ui:Card Style="{StaticResource RowCard}">
-                <Grid>
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="Auto" />
-                        <ColumnDefinition Width="*" />
-                        <ColumnDefinition Width="Auto" />
-                    </Grid.ColumnDefinitions>
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
 
-                    <CheckBox
-                        Grid.Column="0"
+                <CheckBox
+                    Grid.Column="0"
+                    Margin="0,0,10,0"
+                    VerticalAlignment="Center"
+                    IsChecked="{Binding IsSelected}"
+                    Visibility="{Binding CanSelect, Converter={StaticResource BooleanToVisibilityConverter}}" />
+
+                <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+
+                        <TextBlock
+                            Grid.Column="0"
+                            VerticalAlignment="Center"
+                            FontWeight="SemiBold"
+                            Text="{Binding DisplayName}"
+                            TextTrimming="CharacterEllipsis"
+                            ToolTip="{Binding DisplayName}" />
+                        <Border
+                            Grid.Column="1"
+                            Margin="{StaticResource Gap.Inline}"
+                            Padding="6,1"
+                            VerticalAlignment="Center"
+                            Style="{StaticResource TagChip}"
+                            Visibility="{Binding IsCustom, Converter={StaticResource BooleanToVisibilityConverter}}">
+                            <TextBlock FontSize="{StaticResource FontSize.Caption}" Text="{markup:Tr ProjectDetail.CustomTag}" />
+                        </Border>
+                        <ui:SymbolIcon
+                            Grid.Column="2"
+                            Margin="{StaticResource Gap.Inline}"
+                            FontSize="{StaticResource IconSize.Inline}"
+                            Foreground="{DynamicResource SystemFillColorCautionBrush}"
+                            Symbol="Warning24"
+                            ToolTip="{markup:Tr ProjectDetail.UnlockedHint}"
+                            Visibility="{Binding IsUnlocked, Converter={StaticResource BooleanToVisibilityConverter}}" />
+                    </Grid>
+                    <TextBlock
+                        Margin="0,2,0,0"
+                        Style="{StaticResource Caption}"
+                        Text="{Binding Name}"
+                        TextTrimming="CharacterEllipsis"
+                        TextWrapping="NoWrap"
+                        ToolTip="{Binding Name}" />
+                </StackPanel>
+
+                <StackPanel Grid.Column="2" Style="{StaticResource RowActions}">
+                    <ui:Button
                         Margin="0,0,10,0"
+                        Style="{StaticResource RowButton}"
+                        Appearance="Secondary"
+                        Click="OnUpgradeClick"
+                        Content="{Binding NewerVersion}"
+                        Icon="{ui:SymbolIcon ArrowCircleUp24}"
+                        ToolTip="{markup:Tr ProjectDetail.NewerAvailable}"
+                        Visibility="{Binding HasNewerVersion, Converter={StaticResource BooleanToVisibilityConverter}}" />
+
+                    <ComboBox
+                        MinWidth="110"
                         VerticalAlignment="Center"
-                        IsChecked="{Binding IsSelected}"
-                        Visibility="{Binding CanRemove, Converter={StaticResource BooleanToVisibilityConverter}}" />
+                        IsEnabled="{Binding CanChooseVersion}"
+                        ItemsSource="{Binding AvailableVersions}"
+                        SelectedItem="{Binding SelectedVersion}"
+                        Visibility="{Binding HasVersions, Converter={StaticResource BooleanToVisibilityConverter}}" />
 
-                    <StackPanel Grid.Column="1" VerticalAlignment="Center">
-                        <StackPanel Orientation="Horizontal">
-                            <TextBlock FontWeight="SemiBold" Text="{Binding DisplayName}" />
-                            <Border
-                                Margin="{StaticResource Gap.Inline}"
-                                Padding="6,1"
-                                VerticalAlignment="Center"
-                                Style="{StaticResource TagChip}"
-                                Visibility="{Binding IsCustom, Converter={StaticResource BooleanToVisibilityConverter}}">
-                                <TextBlock FontSize="{StaticResource FontSize.Caption}" Text="{markup:Tr ProjectDetail.CustomTag}" />
-                            </Border>
-                            <ui:SymbolIcon
-                                Margin="{StaticResource Gap.Inline}"
-                                FontSize="{StaticResource IconSize.Inline}"
-                                Foreground="{DynamicResource SystemFillColorCautionBrush}"
-                                Symbol="Warning24"
-                                ToolTip="{markup:Tr ProjectDetail.UnlockedHint}"
-                                Visibility="{Binding IsUnlocked, Converter={StaticResource BooleanToVisibilityConverter}}" />
-                        </StackPanel>
-                        <TextBlock Margin="0,2,0,0" Style="{StaticResource Caption}" Text="{Binding Name}" />
-                    </StackPanel>
-
-                    <StackPanel Grid.Column="2" Style="{StaticResource RowActions}">
-                        <ui:Button
-                            Margin="0,0,10,0"
-                            Style="{StaticResource RowButton}"
-                            Appearance="Secondary"
-                            Click="OnUpgradeClick"
-                            Content="{Binding NewerVersion}"
-                            Icon="{ui:SymbolIcon ArrowCircleUp24}"
-                            ToolTip="{markup:Tr ProjectDetail.NewerAvailable}"
-                            Visibility="{Binding HasNewerVersion, Converter={StaticResource BooleanToVisibilityConverter}}" />
-
-                        <ComboBox
-                            MinWidth="110"
-                            VerticalAlignment="Center"
-                            ItemsSource="{Binding AvailableVersions}"
-                            SelectedItem="{Binding SelectedVersion}"
-                            Visibility="{Binding CanSwitchVersion, Converter={StaticResource BooleanToVisibilityConverter}}" />
-                        <TextBlock
-                            VerticalAlignment="Center"
-                            Style="{StaticResource Caption}"
-                            Text="{Binding Version}"
-                            Visibility="{Binding CannotSwitchVersion, Converter={StaticResource BooleanToVisibilityConverter}}" />
-
-                        <ui:Button
-                            Style="{StaticResource RowButton}"
-                            Appearance="Secondary"
-                            Command="{markup:RowCommand ReinstallCommand}"
-                            CommandParameter="{Binding}"
-                            Content="{markup:Tr ProjectDetail.Reinstall}"
-                            IsEnabled="{Binding CanReinstall}" />
-                        <ui:Button
-                            Style="{StaticResource RowButton}"
-                            Appearance="Secondary"
-                            Command="{markup:RowCommand RemoveCommand}"
-                            CommandParameter="{Binding}"
-                            Content="{markup:Tr ProjectDetail.Remove}"
-                            IsEnabled="{Binding CanRemove}" />
-                    </StackPanel>
-                </Grid>
-            </ui:Card>
-        </DataTemplate>
-        <DataTemplate DataType="{x:Type viewModels:AvailablePackageViewModel}">
-            <ui:Card Style="{StaticResource RowCard}">
-                <Grid>
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="*" />
-                        <ColumnDefinition Width="Auto" />
-                    </Grid.ColumnDefinitions>
-
-                    <StackPanel Grid.Column="0" VerticalAlignment="Center">
-                        <TextBlock FontWeight="SemiBold" Text="{Binding DisplayName}" />
-                        <TextBlock Margin="0,2,0,0" Style="{StaticResource Caption}" Text="{Binding Name}" />
-                    </StackPanel>
-
-                    <StackPanel Grid.Column="1" Style="{StaticResource RowActions}">
-                        <ComboBox
-                            MinWidth="110"
-                            VerticalAlignment="Center"
-                            ItemsSource="{Binding AvailableVersions}"
-                            SelectedItem="{Binding SelectedVersion}"
-                            Visibility="{Binding CanChooseVersion, Converter={StaticResource BooleanToVisibilityConverter}}" />
-                        <TextBlock
-                            VerticalAlignment="Center"
-                            Style="{StaticResource Caption}"
-                            Text="{Binding SelectedVersion}"
-                            Visibility="{Binding CannotChooseVersion, Converter={StaticResource BooleanToVisibilityConverter}}" />
-
-                        <ui:Button
-                            Style="{StaticResource RowButton}"
-                            Appearance="Primary"
-                            Command="{markup:RowCommand InstallPackageCommand}"
-                            CommandParameter="{Binding}"
-                            Content="{markup:Tr ProjectDetail.Add}" />
-                    </StackPanel>
-                </Grid>
+                    <ui:Button
+                        Style="{StaticResource RowButton}"
+                        Appearance="Secondary"
+                        Command="{markup:RowCommand ReinstallCommand}"
+                        CommandParameter="{Binding}"
+                        Content="{markup:Tr ProjectDetail.Reinstall}"
+                        IsEnabled="{Binding CanReinstall}"
+                        Visibility="{Binding IsInstalled, Converter={StaticResource BooleanToVisibilityConverter}}" />
+                    <ui:Button
+                        Style="{StaticResource RowButton}"
+                        Appearance="Secondary"
+                        Command="{markup:RowCommand RemoveCommand}"
+                        CommandParameter="{Binding}"
+                        Content="{markup:Tr ProjectDetail.Remove}"
+                        IsEnabled="{Binding CanRemove}"
+                        Visibility="{Binding IsInstalled, Converter={StaticResource BooleanToVisibilityConverter}}" />
+                    <ui:Button
+                        Style="{StaticResource RowButton}"
+                        Appearance="Primary"
+                        Command="{markup:RowCommand InstallPackageCommand}"
+                        CommandParameter="{Binding}"
+                        Content="{markup:Tr ProjectDetail.Add}"
+                        Visibility="{Binding CanAdd, Converter={StaticResource BooleanToVisibilityConverter}}" />
+                </StackPanel>
+            </Grid>
             </ui:Card>
         </DataTemplate>
     </UserControl.Resources>
@@ -461,25 +467,10 @@
                             </StackPanel>
                         </StackPanel>
                 </StackPanel>
-                <StackPanel x:Name="InstalledPackagesSection" Margin="0,0,0,8">
-                    <Grid Margin="{StaticResource Gap.Section}">
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="*" />
-                            <ColumnDefinition Width="Auto" />
-                        </Grid.ColumnDefinitions>
-                        <TextBlock
-                            Margin="0"
-                            VerticalAlignment="Center"
-                            Style="{StaticResource SectionTitle}"
-                            Text="{markup:Tr ProjectDetail.Installed}" />
-                        <ui:Button
-                            Grid.Column="1"
-                            Style="{StaticResource RowButton}"
-                            Appearance="Transparent"
-                            Click="OnJumpToAvailableClick"
-                            Content="{markup:Tr ProjectDetail.JumpToAvailable}"
-                            Icon="{ui:SymbolIcon ArrowDown24}" />
-                    </Grid>
+                <StackPanel Margin="0,0,0,8">
+                    <TextBlock
+                        Style="{StaticResource SectionTitle}"
+                        Text="{markup:Tr ProjectDetail.Packages}" />
 
                     <ui:Card Margin="0,10,0,0" Padding="16,10">
                         <WrapPanel>
@@ -489,7 +480,17 @@
                                 FontWeight="SemiBold"
                                 Text="{markup:Tr ProjectDetail.Batch.Title}" />
                             <ui:Button
-                                Style="{StaticResource BatchPlanButton}"
+                                Style="{StaticResource InstallSelectedButton}"
+                                Appearance="Secondary"
+                                Click="OnInstallSelectedClick"
+                                Content="{markup:Tr ProjectDetail.Batch.Install}" />
+                            <ui:Button
+                                Style="{StaticResource UpgradeSelectedButton}"
+                                Appearance="Secondary"
+                                Click="OnUpgradeSelectedClick"
+                                Content="{markup:Tr ProjectDetail.Batch.Upgrade}" />
+                            <ui:Button
+                                Style="{StaticResource InstalledBatchPlanButton}"
                                 Appearance="Secondary"
                                 Click="OnUpgradeAllClick"
                                 Content="{markup:Tr ProjectDetail.Batch.UpgradeAll}" />
@@ -511,7 +512,7 @@
                                     Content="{markup:Tr ProjectDetail.Batch.Clear}" />
                                 <ui:Button
                                     x:Name="BatchMoreButton"
-                                    Style="{StaticResource BatchPlanButton}"
+                                    Style="{StaticResource InstalledBatchPlanButton}"
                                     Appearance="Secondary"
                                     AutomationProperties.Name="{markup:Tr ProjectDetail.Batch.More}"
                                     Click="OnBatchMoreClick"
@@ -535,46 +536,13 @@
                     </ui:Card>
 
                     <ui:TextBox
+                        x:Name="PackageSearchBox"
                         Margin="0,10,0,0"
-                        x:Name="InstalledPackageSearchBox"
-                        AutomationProperties.Name="{markup:Tr ProjectDetail.SearchInstalledPlaceholder}"
-                        PlaceholderText="{markup:Tr ProjectDetail.SearchInstalledPlaceholder}"
-                        Text="{Binding InstalledSearchText, UpdateSourceTrigger=PropertyChanged}" />
-                </StackPanel>
-                <CollectionContainer x:Name="InstalledPackageRows" />
-                <StackPanel x:Name="AvailablePackagesSection" Margin="0,0,0,12">
-                    <Grid Margin="{StaticResource Gap.Section}">
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="*" />
-                            <ColumnDefinition Width="Auto" />
-                        </Grid.ColumnDefinitions>
-                        <TextBlock
-                            Margin="0"
-                            VerticalAlignment="Center"
-                            Style="{StaticResource SectionTitle}"
-                            Text="{markup:Tr ProjectDetail.Available}" />
-                        <ui:Button
-                            Grid.Column="1"
-                            Style="{StaticResource RowButton}"
-                            Appearance="Transparent"
-                            Click="OnJumpToInstalledClick"
-                            Content="{markup:Tr ProjectDetail.JumpToInstalled}"
-                            Icon="{ui:SymbolIcon ArrowUp24}" />
-                    </Grid>
-
-                    <ui:TextBox
-                        x:Name="AvailablePackageSearchBox"
-                        Margin="0,10,0,0"
+                        AutomationProperties.Name="{markup:Tr ProjectDetail.SearchPlaceholder}"
                         PlaceholderText="{markup:Tr ProjectDetail.SearchPlaceholder}"
                         Text="{Binding SearchText, UpdateSourceTrigger=PropertyChanged}" />
-
-                    <TextBlock
-                        Margin="0,10,0,0"
-                        Style="{StaticResource Caption}"
-                        Text="{markup:Tr ProjectDetail.SearchHint}"
-                        Visibility="{Binding IsSearchEmpty, Converter={StaticResource BooleanToVisibilityConverter}}" />
                 </StackPanel>
-                <CollectionContainer x:Name="AvailablePackageRows" />
+                <CollectionContainer x:Name="PackageRows" />
                 <Expander Margin="{StaticResource Gap.Large}" Header="{markup:Tr ProjectDetail.UnityArguments}">
                     <StackPanel Margin="{StaticResource Gap.Small}">
                         <TextBox

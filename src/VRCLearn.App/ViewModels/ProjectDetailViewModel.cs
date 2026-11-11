@@ -167,22 +167,19 @@ public sealed partial class ProjectDetailViewModel(
     [ObservableProperty]
     private string _searchText = "";
 
-    [ObservableProperty]
-    private string _installedSearchText = "";
+    private ICollectionView? _packageView;
 
-    public ObservableCollection<InstalledPackageViewModel> Installed { get; } = [];
+    public ObservableCollection<PackageRowViewModel> Packages { get; } = [];
 
-    public ICollectionView FilteredInstalled => CollectionViewSource.GetDefaultView(Installed);
+    public ICollectionView PackageView => _packageView ??= CreatePackageView();
 
-    public ObservableCollection<AvailablePackageViewModel> Available { get; } = [];
+    public bool HasInstalledPackages => Packages.Any(x => x.IsInstalled);
 
     public ObservableCollection<PackageChangeViewModel> PendingChanges { get; } = [];
 
     public ObservableCollection<string> PendingConflicts { get; } = [];
 
     public bool HasPendingChanges => PendingChanges.Count > 0;
-
-    public bool IsSearchEmpty => string.IsNullOrWhiteSpace(SearchText);
 
     public bool NeedsResolve => _project?.ShouldResolve(_customPackages) ?? false;
 
@@ -351,8 +348,7 @@ public sealed partial class ProjectDetailViewModel(
         CopyDestination = null;
         UnityHubInstallLink = null;
         PendingRestore = null;
-        Installed.Clear();
-        Available.Clear();
+        Packages.Clear();
         PendingChanges.Clear();
         PendingConflicts.Clear();
         Backups.Clear();
@@ -386,8 +382,7 @@ public sealed partial class ProjectDetailViewModel(
         _customPackages.Clear();
         ForgetCatalogs();
 
-        Installed.Clear();
-        Available.Clear();
+        Packages.Clear();
         Backups.Clear();
         InstalledEditors.Clear();
         SelectedEditor = null;
@@ -398,7 +393,6 @@ public sealed partial class ProjectDetailViewModel(
         ClearPending();
         Status = null;
         SearchText = "";
-        InstalledSearchText = "";
         ProjectType = ProjectType.Unknown;
 
         OnPropertyChanged(nameof(ProjectPath));
@@ -457,8 +451,7 @@ public sealed partial class ProjectDetailViewModel(
             OnPropertyChanged(nameof(HeaderSubtitle));
 
             ReloadEditors(editorsTask.Result);
-            ReloadInstalled();
-            ReloadAvailable();
+            ReloadPackages();
             ReloadBackups();
 
             RefreshUnityState();
@@ -476,8 +469,7 @@ public sealed partial class ProjectDetailViewModel(
             _customPackages.Clear();
             SelectedEditor = null;
             ProjectType = ProjectType.Unknown;
-            Installed.Clear();
-            Available.Clear();
+            Packages.Clear();
             ClearPending();
             Backups.Clear();
             InstalledEditors.Clear();
@@ -860,9 +852,11 @@ public sealed partial class ProjectDetailViewModel(
     }
 
     [RelayCommand]
-    private async Task InstallPackage(AvailablePackageViewModel candidate)
+    private async Task InstallPackage(PackageRowViewModel candidate)
     {
-        if (_project is null || IsBusy)
+        if (_project is null || IsBusy || _switchingVersion
+            || candidate.Package is not { } package
+            || (_pending is not null && _requestedAdds.Count == 0))
         {
             return;
         }
@@ -871,7 +865,7 @@ public sealed partial class ProjectDetailViewModel(
 
         var previous = _requestedAdds.GetValueOrDefault(candidate.Name);
 
-        _requestedAdds[candidate.Name] = candidate.Package;
+        _requestedAdds[candidate.Name] = package;
 
         if (await RefreshPendingAsync())
         {
@@ -940,7 +934,7 @@ public sealed partial class ProjectDetailViewModel(
     }
 
     [RelayCommand]
-    private async Task Remove(InstalledPackageViewModel installed)
+    private async Task Remove(PackageRowViewModel installed)
     {
         if (!installed.CanRemove)
         {
@@ -1048,7 +1042,16 @@ public sealed partial class ProjectDetailViewModel(
     public Task<bool> PreparePrereleaseUpgradesAsync() =>
         ShowPrereleaseUpgrades ? PrepareUpgradesAsync(allowPrerelease: true) : Task.FromResult(false);
 
-    private async Task<bool> PrepareUpgradesAsync(bool allowPrerelease)
+    public Task<bool> PrepareSelectedUpgradesAsync()
+    {
+        var names = Packages.Where(x => x.IsSelected && x.IsInstalled && x.HasNewerVersion)
+            .Select(x => x.Name).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        return names.Count == 0
+            ? Task.FromResult(false)
+            : PrepareUpgradesAsync(_allowPrerelease, names);
+    }
+
+    private async Task<bool> PrepareUpgradesAsync(bool allowPrerelease, IReadOnlySet<string>? names = null)
     {
         if (_project is not { } current || IsBusy || _switchingVersion
             || _pending is not null || _requestedAdds.Count > 0)
@@ -1076,6 +1079,11 @@ public sealed partial class ProjectDetailViewModel(
 
             foreach (var (name, installed) in project.InstalledPackages)
             {
+                if (names is not null && !names.Contains(name))
+                {
+                    continue;
+                }
+
                 var version = project.GetLocked(name) is { } locked && locked.Version > installed.Version
                     ? locked.Version
                     : installed.Version;
@@ -1149,12 +1157,92 @@ public sealed partial class ProjectDetailViewModel(
         }
     }
 
-    public bool HasSelectedInstalled => Installed.Any(x => x.IsSelected && x.CanRemove);
+    public bool HasSelected => Packages.Any(x => x.IsSelected);
+
+    public bool HasSelectedInstalled => Packages.Any(x => x.IsSelected && x.CanRemove);
+
+    public bool CanInstallSelected => Packages.Any(x => x.IsSelected && x.CanAdd);
+
+    public bool CanUpgradeSelected => Packages.Any(x => x.IsSelected && x.IsInstalled && x.HasNewerVersion);
+
+    public bool CanReinstallSelected => Packages.Any(x => x.IsSelected && x.CanReinstall);
+
+    public async Task<bool> PrepareInstallSelectedAsync()
+    {
+        if (_project is not { } current || IsBusy || _switchingVersion
+            || _pending is not null || _requestedAdds.Count > 0)
+        {
+            return false;
+        }
+
+        var packages = Packages.Where(x => x.IsSelected && x.CanAdd)
+            .Select(x => x.Package).OfType<PackageInfo>().ToList();
+        if (packages.Count == 0)
+        {
+            return false;
+        }
+
+        var generation = _loadGeneration;
+        var path = ProjectPath;
+        IsBusy = true;
+        Status = null;
+
+        try
+        {
+            var fingerprint = await FingerprintAsync(current);
+            var project = await projects.OpenAsync(path, CancellationToken.None);
+            if (generation != _loadGeneration)
+            {
+                return false;
+            }
+
+            var outcome = await PackageOperations.AddAsync(
+                project, Catalog(), packages, AddPackageOperation.AutoDetected,
+                _allowPrerelease, CancellationToken.None);
+            if (generation != _loadGeneration)
+            {
+                return false;
+            }
+
+            if (outcome.Changes is not { } changes)
+            {
+                logger.LogWarning("批量安装包规划失败：{Project} {Missing}", path,
+                    ReportMissingDependencies(outcome.MissingDependencies));
+                return false;
+            }
+
+            _project = project;
+            foreach (var package in packages)
+            {
+                _requestedAdds[package.Name] = package;
+            }
+
+            await SetPendingAsync(changes, _requestedAdds.Keys, fingerprint);
+            return true;
+        }
+        catch (Exception exception) when (exception is not OperationCanceledException)
+        {
+            if (generation == _loadGeneration)
+            {
+                logger.LogWarning(exception, "批量安装包规划失败：{Project}", path);
+                Status = localization.Format("ProjectDetail.ApplyFailed", exception.Message);
+            }
+
+            return false;
+        }
+        finally
+        {
+            if (generation == _loadGeneration)
+            {
+                IsBusy = false;
+            }
+        }
+    }
 
     [RelayCommand(CanExecute = nameof(HasSelectedInstalled))]
     private async Task RemoveSelected()
     {
-        var names = Installed
+        var names = Packages
             .Where(x => x.IsSelected && x.CanRemove)
             .Select(x => x.Name)
             .ToList();
@@ -1168,7 +1256,7 @@ public sealed partial class ProjectDetailViewModel(
     }
 
     [RelayCommand]
-    private async Task Reinstall(InstalledPackageViewModel installed)
+    private async Task Reinstall(PackageRowViewModel installed)
     {
         if (!installed.CanReinstall)
         {
@@ -1178,10 +1266,10 @@ public sealed partial class ProjectDetailViewModel(
         await ReinstallPackagesAsync([installed.Name]);
     }
 
-    [RelayCommand(CanExecute = nameof(HasSelectedInstalled))]
+    [RelayCommand(CanExecute = nameof(CanReinstallSelected))]
     private async Task ReinstallSelected()
     {
-        var names = Installed
+        var names = Packages
             .Where(x => x.IsSelected && x.CanReinstall)
             .Select(x => x.Name)
             .ToList();
@@ -1194,10 +1282,10 @@ public sealed partial class ProjectDetailViewModel(
         await ReinstallPackagesAsync(names);
     }
 
-    [RelayCommand(CanExecute = nameof(HasSelectedInstalled))]
+    [RelayCommand(CanExecute = nameof(HasSelected))]
     private void ClearSelection()
     {
-        foreach (var row in Installed)
+        foreach (var row in Packages)
         {
             row.IsSelected = false;
         }
@@ -1318,7 +1406,7 @@ public sealed partial class ProjectDetailViewModel(
             }
         }
 
-        ReloadInstalled();
+        ReloadPackages();
 
         Status = localization["ProjectDetail.Discarded"];
     });
@@ -1386,36 +1474,26 @@ public sealed partial class ProjectDetailViewModel(
         ClearPending();
         _project = await projects.OpenAsync(ProjectPath, CancellationToken.None);
 
-        ReloadInstalled();
-        ReloadAvailable();
+        ReloadPackages();
 
         Status = leftover.Count > 0
             ? localization.Format("ProjectDetail.AppliedWithLeftovers", leftover.Count)
             : successMessage;
     }
 
-    partial void OnInstalledSearchTextChanged(string value)
-    {
-        var query = value.Trim();
-        var view = FilteredInstalled;
-        view.Filter = query.Length == 0
-            ? null
-            : item => item is InstalledPackageViewModel row
-                && ApproximateMatch.Rank(query, row.Name, row.DisplayName) is not null;
+    private TransientAction Search =>
+        _search ??= new TransientAction(TimeSpan.FromMilliseconds(SearchDelayMilliseconds), RefreshSearch);
 
-        foreach (var row in Installed.Where(row => row.IsSelected && !view.Contains(row)))
+    partial void OnSearchTextChanged(string value) => Search.Run();
+
+    private void RefreshSearch()
+    {
+        PackageView.Refresh();
+
+        foreach (var row in Packages.Where(row => row.IsSelected && !MatchesSearch(row)))
         {
             row.IsSelected = false;
         }
-    }
-
-    private TransientAction Search =>
-        _search ??= new TransientAction(TimeSpan.FromMilliseconds(SearchDelayMilliseconds), ReloadAvailable);
-
-    partial void OnSearchTextChanged(string value)
-    {
-        OnPropertyChanged(nameof(IsSearchEmpty));
-        Search.Run();
     }
 
     private Task<string> FingerprintAsync() =>
@@ -1788,16 +1866,16 @@ public sealed partial class ProjectDetailViewModel(
 
     private string TypeName(ProjectType type) => localization[$"ProjectType.{type}"];
 
-    private void ReloadInstalled()
+    private void ReloadPackages()
     {
-        Installed.Clear();
+        Packages.Clear();
         _customPackages.Clear();
 
         if (_project is not null)
         {
             var catalog = Catalog();
             var unlockedNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-            var customRows = new List<InstalledPackageViewModel>();
+            var customRows = new List<PackageRowViewModel>();
 
             foreach (var (name, manifest) in _project.UnlockedPackages)
             {
@@ -1811,7 +1889,7 @@ public sealed partial class ProjectDetailViewModel(
 
             foreach (var (name, manifest) in _project.InstalledPackages)
             {
-                var row = Row(
+                var row = InstalledRow(
                     catalog,
                     name,
                     manifest.DisplayName ?? name,
@@ -1827,7 +1905,7 @@ public sealed partial class ProjectDetailViewModel(
                 }
                 else
                 {
-                    Installed.Add(row);
+                    Packages.Add(row);
                 }
             }
 
@@ -1851,7 +1929,7 @@ public sealed partial class ProjectDetailViewModel(
                         continue;
                     }
 
-                    customRows.Add(Row(
+                    customRows.Add(InstalledRow(
                         catalog,
                         locked.Name,
                         locked.Name,
@@ -1866,7 +1944,7 @@ public sealed partial class ProjectDetailViewModel(
 
             foreach (var (name, manifest) in _project.UnlockedPackages)
             {
-                customRows.Add(Row(
+                customRows.Add(InstalledRow(
                     catalog,
                     name,
                     manifest?.DisplayName ?? name,
@@ -1880,15 +1958,56 @@ public sealed partial class ProjectDetailViewModel(
 
             foreach (var row in customRows)
             {
-                Installed.Add(row);
+                Packages.Add(row);
+            }
+
+            var installed = _project.AllPackages
+                .Select(x => x.Name)
+                .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+            var offered = OfferedCatalog();
+            var selector = OfferedVersionSelector();
+            var available = new List<PackageRowViewModel>();
+
+            foreach (var name in offered.PackageNames)
+            {
+                if (installed.Contains(name))
+                {
+                    continue;
+                }
+
+                var candidates = offered.GetVersions(name)
+                    .Where(x => selector.Satisfies(x.Manifest))
+                    .OrderByDescending(x => x.Version)
+                    .ToList();
+
+                if (candidates.Count == 0)
+                {
+                    continue;
+                }
+
+                var row = PackageRowViewModel.Available(
+                    candidates,
+                    candidates[0].Manifest.DisplayName ?? name);
+
+                row.PropertyChanged += OnPackageChanged;
+                available.Add(row);
+            }
+
+            foreach (var row in available
+                         .OrderBy(x => x.DisplayName, StringComparer.CurrentCultureIgnoreCase)
+                         .ThenBy(x => x.Name, StringComparer.OrdinalIgnoreCase))
+            {
+                Packages.Add(row);
             }
         }
 
         OnPropertyChanged(nameof(NeedsResolve));
         NotifySelectionChanged();
+        PackageView.Refresh();
     }
 
-    private InstalledPackageViewModel Row(
+    private PackageRowViewModel InstalledRow(
         PackageCatalog catalog,
         string name,
         string displayName,
@@ -1913,7 +2032,7 @@ public sealed partial class ProjectDetailViewModel(
             versions.Insert(0, version);
         }
 
-        var row = new InstalledPackageViewModel(
+        var row = PackageRowViewModel.Installed(
             name,
             displayName,
             version,
@@ -1924,14 +2043,14 @@ public sealed partial class ProjectDetailViewModel(
             NewerVersion(catalog, name, version, isUnlocked || isCustom),
             isCustom ? null : chosen => _ = SwitchVersionAsync(name, chosen));
 
-        row.PropertyChanged += OnInstalledChanged;
+        row.PropertyChanged += OnPackageChanged;
 
         return row;
     }
 
-    private void OnInstalledChanged(object? sender, PropertyChangedEventArgs e)
+    private void OnPackageChanged(object? sender, PropertyChangedEventArgs e)
     {
-        if (e.PropertyName != nameof(InstalledPackageViewModel.IsSelected))
+        if (e.PropertyName != nameof(PackageRowViewModel.IsSelected))
         {
             return;
         }
@@ -1941,7 +2060,12 @@ public sealed partial class ProjectDetailViewModel(
 
     private void NotifySelectionChanged()
     {
+        OnPropertyChanged(nameof(HasSelected));
         OnPropertyChanged(nameof(HasSelectedInstalled));
+        OnPropertyChanged(nameof(HasInstalledPackages));
+        OnPropertyChanged(nameof(CanInstallSelected));
+        OnPropertyChanged(nameof(CanUpgradeSelected));
+        OnPropertyChanged(nameof(CanReinstallSelected));
         RemoveSelectedCommand.NotifyCanExecuteChanged();
         ReinstallSelectedCommand.NotifyCanExecuteChanged();
         ClearSelectionCommand.NotifyCanExecuteChanged();
@@ -1970,11 +2094,11 @@ public sealed partial class ProjectDetailViewModel(
             return;
         }
 
-        var row = Installed.FirstOrDefault(x => x.Name == name);
+        var row = Packages.FirstOrDefault(x => x.Name == name);
         if (row is null || !PackageVersion.TryParse(version, out var target)
             || !PackageVersion.TryParse(row.Version, out var current) || target == current)
         {
-            ReloadInstalled();
+            ReloadPackages();
             return;
         }
 
@@ -1982,7 +2106,7 @@ public sealed partial class ProjectDetailViewModel(
             name, version, upgradeDependents, reportFailure: !upgradeDependents));
         if (!prepared)
         {
-            ReloadInstalled();
+            ReloadPackages();
         }
     }
 
@@ -2208,66 +2332,62 @@ public sealed partial class ProjectDetailViewModel(
     private VersionSelector OfferedVersionSelector() =>
         VersionSelector.LatestFor(_project?.UnityVersion, _allowPrerelease);
 
-    private void ReloadAvailable()
+    private ICollectionView CreatePackageView()
     {
-        Available.Clear();
+        var view = CollectionViewSource.GetDefaultView(Packages);
 
-        if (_project is null)
+        view.Filter = MatchesSearch;
+
+        return view;
+    }
+
+    private bool MatchesSearch(object item)
+    {
+        if (item is not PackageRowViewModel row)
         {
-            return;
+            return false;
         }
 
         var query = SearchText.Trim();
-        var showAll = query.Length == 0;
 
-        var installed = _project.AllPackages.Select(x => x.Name).ToHashSet(StringComparer.OrdinalIgnoreCase);
-        var catalog = OfferedCatalog();
-        var selector = OfferedVersionSelector();
-        var matches = new List<(int Rank, string Name, IReadOnlyList<PackageInfo> Candidates, string Display)>();
-
-        foreach (var name in catalog.PackageNames)
-        {
-            if (installed.Contains(name))
-            {
-                continue;
-            }
-
-            var candidates = catalog.GetVersions(name)
-                .Where(x => selector.Satisfies(x.Manifest))
-                .OrderByDescending(x => x.Version)
-                .ToList();
-
-            if (candidates.Count == 0)
-            {
-                continue;
-            }
-
-            var display = candidates[0].Manifest.DisplayName ?? name;
-
-            var rank = showAll ? 0 : ApproximateMatch.Rank(query, name, display);
-            if (rank is null)
-            {
-                continue;
-            }
-
-            matches.Add((rank.Value, name, candidates, display));
-        }
-
-        foreach (var match in matches
-                     .OrderBy(x => x.Rank)
-                     .ThenBy(x => showAll ? x.Display : null, StringComparer.OrdinalIgnoreCase)
-                     .ThenBy(x => x.Name, StringComparer.OrdinalIgnoreCase))
-        {
-            Available.Add(new AvailablePackageViewModel(match.Candidates, match.Display));
-        }
+        return query.Length == 0
+            || ApproximateMatch.Rank(query, row.Name, row.DisplayName) is not null;
     }
 }
 
-public sealed partial class InstalledPackageViewModel : ObservableObject
+public sealed partial class PackageRowViewModel : ObservableObject
 {
+    private readonly IReadOnlyList<PackageInfo> _candidates;
     private readonly Action<string>? _onVersionChosen;
 
-    public InstalledPackageViewModel(
+    private PackageRowViewModel(
+        string name,
+        string displayName,
+        string version,
+        bool isInstalled,
+        bool isUnlocked,
+        bool isCustom,
+        bool isMissing,
+        IReadOnlyList<string> availableVersions,
+        IReadOnlyList<PackageInfo> candidates,
+        string? newerVersion,
+        Action<string>? onVersionChosen)
+    {
+        Name = name;
+        DisplayName = displayName;
+        Version = version;
+        IsInstalled = isInstalled;
+        IsUnlocked = isUnlocked;
+        IsCustom = isCustom;
+        IsMissing = isMissing;
+        AvailableVersions = availableVersions;
+        _candidates = candidates;
+        _onVersionChosen = onVersionChosen;
+        _selectedVersion = isInstalled ? version : availableVersions[0];
+        NewerVersion = newerVersion;
+    }
+
+    public static PackageRowViewModel Installed(
         string name,
         string displayName,
         string version,
@@ -2276,20 +2396,35 @@ public sealed partial class InstalledPackageViewModel : ObservableObject
         bool isMissing,
         IReadOnlyList<string> availableVersions,
         string? newerVersion,
-        Action<string>? onVersionChosen)
-    {
-        Name = name;
-        DisplayName = displayName;
-        Version = version;
-        IsUnlocked = isUnlocked;
-        IsCustom = isCustom;
-        IsMissing = isMissing;
-        _onVersionChosen = onVersionChosen;
-        _selectedVersion = version;
+        Action<string>? onVersionChosen) =>
+        new(
+            name,
+            displayName,
+            version,
+            true,
+            isUnlocked,
+            isCustom,
+            isMissing,
+            availableVersions,
+            [],
+            newerVersion,
+            onVersionChosen);
 
-        AvailableVersions = availableVersions;
-        NewerVersion = newerVersion;
-    }
+    public static PackageRowViewModel Available(
+        IReadOnlyList<PackageInfo> candidates,
+        string displayName) =>
+        new(
+            candidates[0].Name,
+            displayName,
+            candidates[0].Version.ToString(),
+            false,
+            false,
+            false,
+            false,
+            [.. candidates.Select(x => x.Version.ToString())],
+            candidates,
+            null,
+            null);
 
     public string Name { get; }
 
@@ -2297,35 +2432,75 @@ public sealed partial class InstalledPackageViewModel : ObservableObject
 
     public string Version { get; }
 
+    public bool IsInstalled { get; }
+
     public bool IsUnlocked { get; }
 
     public bool IsCustom { get; }
 
     public bool IsMissing { get; }
 
-    public bool CanRemove => !IsUnlocked && !IsMissing;
+    public bool CanAdd => !IsInstalled && _candidates.Count > 0;
 
-    public bool CanReinstall => !IsUnlocked && !IsCustom;
+    public bool CanRemove => IsInstalled && !IsUnlocked && !IsMissing;
+
+    public bool CanReinstall => IsInstalled && !IsUnlocked && !IsCustom;
 
     public IReadOnlyList<string> AvailableVersions { get; }
 
-    public bool CanSwitchVersion => !IsUnlocked && !IsCustom && AvailableVersions.Count > 1;
+    public bool CanChooseVersion =>
+        (!IsInstalled || (!IsUnlocked && !IsCustom)) && AvailableVersions.Count > 1;
 
-    public bool CannotSwitchVersion => !CanSwitchVersion;
+    public bool HasVersions => AvailableVersions.Count > 0;
+
+    public bool CanSelect => IsInstalled
+        ? CanRemove || CanReinstall || HasNewerVersion
+        : CanAdd;
 
     public string? NewerVersion { get; }
 
     public bool HasNewerVersion => NewerVersion is not null;
+
+    public PackageInfo? Package
+    {
+        get
+        {
+            if (IsInstalled || _candidates.Count == 0)
+            {
+                return null;
+            }
+
+            var index = -1;
+
+            for (var i = 0; i < AvailableVersions.Count; i++)
+            {
+                if (AvailableVersions[i] == SelectedVersion)
+                {
+                    index = i;
+                    break;
+                }
+            }
+
+            return _candidates[Math.Max(0, index)];
+        }
+    }
 
     [ObservableProperty]
     private string _selectedVersion;
 
     partial void OnSelectedVersionChanged(string value)
     {
-        if (value != Version)
+        if (string.IsNullOrEmpty(value))
         {
-            _onVersionChosen?.Invoke(value);
+            return;
         }
+
+        if (IsInstalled && value == Version)
+        {
+            return;
+        }
+
+        _onVersionChosen?.Invoke(value);
     }
 
     [ObservableProperty]
@@ -2339,38 +2514,6 @@ public sealed class UnityEditorOption(UnityEditor editor)
     public string Path { get; } = editor.ExecutablePath;
 
     public string Display { get; } = editor.Version.ToString();
-}
-
-public sealed partial class AvailablePackageViewModel : ObservableObject
-{
-    private readonly IReadOnlyList<PackageInfo> _candidates;
-    private readonly List<string> _versions;
-
-    public AvailablePackageViewModel(IReadOnlyList<PackageInfo> candidates, string displayName)
-    {
-        _candidates = candidates;
-        _versions = [.. candidates.Select(x => x.Version.ToString())];
-
-        Name = candidates[0].Name;
-        DisplayName = displayName;
-        AvailableVersions = _versions;
-        _selectedVersion = _versions[0];
-    }
-
-    public string Name { get; }
-
-    public string DisplayName { get; }
-
-    public IReadOnlyList<string> AvailableVersions { get; }
-
-    public bool CanChooseVersion => _versions.Count > 1;
-
-    public bool CannotChooseVersion => !CanChooseVersion;
-
-    public PackageInfo Package => _candidates[Math.Max(0, _versions.IndexOf(SelectedVersion))];
-
-    [ObservableProperty]
-    private string _selectedVersion;
 }
 
 public sealed class PackageChangeViewModel(string description, string? name = null, bool removable = false)

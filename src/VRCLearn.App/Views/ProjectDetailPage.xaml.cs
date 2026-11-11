@@ -20,8 +20,7 @@ public partial class ProjectDetailPage : UserControl
         DataContextChanged += (_, args) =>
         {
             var viewModel = args.NewValue as ProjectDetailViewModel;
-            InstalledPackageRows.Collection = viewModel?.FilteredInstalled;
-            AvailablePackageRows.Collection = viewModel?.Available;
+            PackageRows.Collection = viewModel?.PackageView;
         };
 
         _unityTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1) };
@@ -43,12 +42,6 @@ public partial class ProjectDetailPage : UserControl
         Unloaded += (_, _) => _unityTimer.Stop();
     }
 
-    private void OnJumpToAvailableClick(object sender, RoutedEventArgs e) =>
-        JumpToSection(AvailablePackagesSection, AvailablePackageSearchBox);
-
-    private void OnJumpToInstalledClick(object sender, RoutedEventArgs e) =>
-        JumpToSection(InstalledPackagesSection, InstalledPackageSearchBox);
-
     private void OnBatchMoreClick(object sender, RoutedEventArgs e)
     {
         if (sender is FrameworkElement { ContextMenu: { } menu } button)
@@ -64,6 +57,12 @@ public partial class ProjectDetailPage : UserControl
             ? Visibility.Visible
             : Visibility.Collapsed;
     }
+
+    private async void OnInstallSelectedClick(object sender, RoutedEventArgs e) =>
+        await ReviewBatchAsync(viewModel => viewModel.PrepareInstallSelectedAsync());
+
+    private async void OnUpgradeSelectedClick(object sender, RoutedEventArgs e) =>
+        await ReviewBatchAsync(viewModel => viewModel.PrepareSelectedUpgradesAsync());
 
     private async void OnUpgradeAllClick(object sender, RoutedEventArgs e) =>
         await ReviewBatchAsync(viewModel => viewModel.PrepareStableUpgradesAsync());
@@ -189,7 +188,7 @@ public partial class ProjectDetailPage : UserControl
 
     private void OnUpgradeClick(object sender, RoutedEventArgs e)
     {
-        if (sender is FrameworkElement { DataContext: InstalledPackageViewModel { NewerVersion: not null } package }
+        if (sender is FrameworkElement { DataContext: PackageRowViewModel { IsInstalled: true, NewerVersion: not null } package }
             && DataContext is ProjectDetailViewModel viewModel)
         {
             _ = viewModel.SwitchToVersionAsync(package.Name, package.NewerVersion!);
