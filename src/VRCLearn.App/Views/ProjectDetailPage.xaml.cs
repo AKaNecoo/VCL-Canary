@@ -1,7 +1,6 @@
 using System.IO;
 using System.Windows;
 using System.Windows.Controls;
-using System.Windows.Input;
 using System.Windows.Media.Animation;
 using System.Windows.Threading;
 using VRCLearn.App.Markup;
@@ -188,12 +187,12 @@ public partial class ProjectDetailPage : UserControl
         BackupsContent.BeginAnimation(MaxHeightProperty, collapse);
     }
 
-    private void OnUpgradeClick(object sender, MouseButtonEventArgs e)
+    private void OnUpgradeClick(object sender, RoutedEventArgs e)
     {
-        if (sender is FrameworkElement { DataContext: InstalledPackageViewModel { NewerVersion: { } version } package }
+        if (sender is FrameworkElement { DataContext: InstalledPackageViewModel { NewerVersion: not null } package }
             && DataContext is ProjectDetailViewModel viewModel)
         {
-            _ = viewModel.SwitchToVersionAsync(package.Name, version);
+            _ = viewModel.SwitchToVersionAsync(package.Name, package.NewerVersion!);
         }
     }
 

@@ -61,14 +61,13 @@
                     </StackPanel>
 
                     <StackPanel Grid.Column="2" Style="{StaticResource RowActions}">
-                        <TextBlock
+                        <ui:Button
                             Margin="0,0,10,0"
-                            VerticalAlignment="Center"
-                            Cursor="Hand"
-                            FontSize="{StaticResource FontSize.Caption}"
-                            Foreground="{DynamicResource AccentTextFillColorPrimaryBrush}"
-                            MouseLeftButtonUp="OnUpgradeClick"
-                            Text="{Binding NewerVersion, StringFormat={}{0} ↑}"
+                            Style="{StaticResource RowButton}"
+                            Appearance="Secondary"
+                            Click="OnUpgradeClick"
+                            Content="{Binding NewerVersion}"
+                            Icon="{ui:SymbolIcon ArrowCircleUp24}"
                             ToolTip="{markup:Tr ProjectDetail.NewerAvailable}"
                             Visibility="{Binding HasNewerVersion, Converter={StaticResource BooleanToVisibilityConverter}}" />
 
@@ -321,11 +320,9 @@
                             x:Name="BackupsContent"
                             ClipToBounds="True"
                             Visibility="Collapsed">
-                            <ScrollViewer
-                                MaxHeight="320"
-                                Margin="{StaticResource Gap.Row}"
-                                Style="{StaticResource VirtualizedListScroll}">
                                 <ItemsControl
+                                    Style="{StaticResource VirtualizedItems}"
+                                    MaxHeight="300"
                                     ItemsSource="{Binding Backups}"
                                     ItemsPanel="{StaticResource VirtualizingStackItemsPanel}"
                                     VirtualizingPanel.ScrollUnit="Pixel"
@@ -376,7 +373,6 @@
                                     </DataTemplate>
                                 </ItemsControl.ItemTemplate>
                                 </ItemsControl>
-                            </ScrollViewer>
 
                             <StackPanel Visibility="{Binding HasPendingRestore, Converter={StaticResource BooleanToVisibilityConverter}}">
                                 <TextBlock

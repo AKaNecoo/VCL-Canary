@@ -1,7 +1,10 @@
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.IO;
+using System.Text.RegularExpressions;
+using System.Windows;
 using System.Windows.Data;
+using System.Windows.Documents;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Microsoft.Extensions.Logging;
@@ -11,6 +14,7 @@ using VRCLearn.Core.Hashing;
 using VRCLearn.Core.IO;
 using VRCLearn.Core.Packages;
 using VRCLearn.Core.Projects;
+using VRCLearn.Core.Repositories;
 using VRCLearn.Core.Templates;
 using VRCLearn.Core.Text;
 using VRCLearn.Core.Unity;
@@ -127,7 +131,7 @@ public sealed partial class ProjectDetailViewModel(
 
     private static string MajorOf(UnityProject project) => project.UnityVersion.Major.ToString();
 
-    private void ReloadEditors()
+    private void ReloadEditors(IReadOnlyList<UnityEditor> installed)
     {
         _reloadingEditors = true;
 
@@ -137,8 +141,6 @@ public sealed partial class ProjectDetailViewModel(
 
             if (_project is { } project)
             {
-                var installed = opener.AllEditors();
-
                 var chosen = UnityEditorList.PickForProject(
                     installed,
                     project.UnityVersion,
@@ -304,33 +306,24 @@ public sealed partial class ProjectDetailViewModel(
 
     private bool _reloadingEditors;
 
-    private PackageCatalog Catalog()
-    {
-        if (_catalog is { } cached)
-        {
-            return cached;
-        }
-
-        var cachedRepositories = repositories.CachedRepositories();
-        _catalogComplete = cachedRepositories.Count == repositories.List().Count;
-
-        return _catalog = PackageCatalog.FromRepositories(cachedRepositories, _userPackages);
-    }
+    private PackageCatalog Catalog() => _catalog!;
 
     /// <summary>「可以装什么」用这份；隐藏的仓库不计入。</summary>
-    private PackageCatalog OfferedCatalog()
+    private PackageCatalog OfferedCatalog() => _offeredCatalog!;
+
+    private static (PackageCatalog Catalog, PackageCatalog Offered, bool Complete) BuildCatalogs(
+        IReadOnlyList<LocalCachedRepository> cached,
+        int repositoryCount,
+        IReadOnlyList<PackageInfo> userPackages,
+        IReadOnlyCollection<string> hidden,
+        bool hideLocal)
     {
-        if (_offeredCatalog is { } cached)
-        {
-            return cached;
-        }
+        var catalog = PackageCatalog.FromRepositories(cached, userPackages);
+        var offered = PackageCatalog.FromRepositories(
+            [.. cached.Where(x => x.Id is null || !hidden.Contains(x.Id))],
+            hideLocal ? [] : userPackages);
 
-        var config = configStore.Current;
-        var hidden = config.HiddenRepositories;
-
-        return _offeredCatalog = PackageCatalog.FromRepositories(
-            [.. repositories.CachedRepositories().Where(x => x.Id is null || !hidden.Contains(x.Id))],
-            config.HideLocalUserPackages ? [] : _userPackages);
+        return (catalog, offered, cached.Count == repositoryCount);
     }
 
     private void ForgetCatalogs()
@@ -434,15 +427,36 @@ public sealed partial class ProjectDetailViewModel(
                 return;
             }
 
+            var repositoryEntries = repositories.List();
+            var hidden = configStore.Current.HiddenRepositories.ToArray();
+            var hideLocal = configStore.Current.HideLocalUserPackages;
+
+            var catalogsTask = Task.Run(() => BuildCatalogs(
+                repositories.CachedRepositories(repositoryEntries),
+                repositoryEntries.Count,
+                loadedUserPackages,
+                hidden,
+                hideLocal));
+
+            var editorsTask = Task.Run(opener.AllEditors);
+
+            await Task.WhenAll(catalogsTask, editorsTask);
+
+            if (generation != _loadGeneration)
+            {
+                return;
+            }
+
             _project = project;
             _userPackages = loadedUserPackages;
-            ForgetCatalogs();
             _allowPrerelease = settings.Current.ShowPrereleasePackages;
+            ForgetCatalogs();
+            (_catalog, _offeredCatalog, _catalogComplete) = catalogsTask.Result;
             ReloadUnityArguments();
             ProjectType = _project.DetectProjectType();
             OnPropertyChanged(nameof(HeaderSubtitle));
 
-            ReloadEditors();
+            ReloadEditors(editorsTask.Result);
             ReloadInstalled();
             ReloadAvailable();
             ReloadBackups();
@@ -462,11 +476,12 @@ public sealed partial class ProjectDetailViewModel(
             _customPackages.Clear();
             SelectedEditor = null;
             ProjectType = ProjectType.Unknown;
-            ClearPending();
             Installed.Clear();
             Available.Clear();
+            ClearPending();
             Backups.Clear();
             InstalledEditors.Clear();
+            NotifySelectionChanged();
             OnPropertyChanged(nameof(HasBackups));
             OnPropertyChanged(nameof(HeaderSubtitle));
             Status = localization.Format("ProjectDetail.Unreadable", exception.Message);
@@ -1487,6 +1502,288 @@ public sealed partial class ProjectDetailViewModel(
         OnPropertyChanged(nameof(HasPendingChanges));
     }
 
+    private List<string> ConflictLines(
+        PendingProjectChanges changes,
+        IReadOnlyCollection<string>? explained = null)
+    {
+        var skip = explained is null
+            ? null
+            : new HashSet<string>(explained, StringComparer.OrdinalIgnoreCase);
+
+        var lines = new List<string>();
+
+        foreach (var (name, conflict) in changes.Conflicts)
+        {
+            if (conflict.ConflictsWithUnity)
+            {
+                lines.Add(localization.Format("ProjectDetail.Conflict.Unity", name));
+            }
+
+            var conflicting = skip is null
+                ? conflict.ConflictingPackages
+                : conflict.ConflictingPackages.Where(x => !skip.Contains(x)).ToList();
+
+            if (conflicting.Count > 0)
+            {
+                lines.Add(localization.Format(
+                    "ProjectDetail.Conflict.Packages",
+                    name,
+                    Join(conflicting)));
+            }
+
+            foreach (var unlocked in conflict.UnlockedNames)
+            {
+                lines.Add(localization.Format("ProjectDetail.Conflict.Unlocked", unlocked));
+            }
+        }
+
+        return lines;
+    }
+
+    private List<string> BlockingConflicts(
+        PendingProjectChanges changes,
+        IReadOnlyCollection<string>? explained = null)
+    {
+        var skip = explained is null
+            ? null
+            : new HashSet<string>(explained, StringComparer.OrdinalIgnoreCase);
+
+        var lines = new List<string>();
+
+        foreach (var (name, conflict) in changes.Conflicts)
+        {
+            if (conflict.ConflictsWithUnity)
+            {
+                lines.Add(localization.Format("ProjectDetail.Conflict.Unity", name));
+            }
+
+            var conflicting = skip is null
+                ? conflict.ConflictingPackages
+                : conflict.ConflictingPackages.Where(x => !skip.Contains(x)).ToList();
+
+            if (conflicting.Count > 0)
+            {
+                lines.Add(localization.Format(
+                    "ProjectDetail.Conflict.Packages",
+                    name,
+                    Join(conflicting)));
+            }
+        }
+
+        return lines;
+    }
+
+    private static readonly Regex InlinePlaceholder = new(@"\{(\d)\}", RegexOptions.Compiled);
+
+    private static IReadOnlyList<Inline> FormatInlines(
+        string format,
+        params (string Text, bool Bold)[] args)
+    {
+        var inlines = new List<Inline>();
+        var position = 0;
+
+        foreach (Match match in InlinePlaceholder.Matches(format))
+        {
+            if (match.Index > position)
+            {
+                inlines.Add(new Run(format[position..match.Index]));
+            }
+
+            var (text, bold) = args[int.Parse(match.Groups[1].Value)];
+
+            inlines.Add(new Run(text)
+            {
+                FontWeight = bold ? FontWeights.Bold : FontWeights.Normal,
+            });
+
+            position = match.Index + match.Length;
+        }
+
+        if (position < format.Length)
+        {
+            inlines.Add(new Run(format[position..]));
+        }
+
+        return inlines;
+    }
+
+    private static string InlinesToText(IEnumerable<Inline> inlines) =>
+        string.Concat(inlines.Select(x => x switch
+        {
+            Run run => run.Text,
+            LineBreak => Environment.NewLine,
+            _ => "",
+        }));
+
+    private static void AppendLine(List<Inline> target, IReadOnlyList<Inline> line)
+    {
+        if (target.Count > 0)
+        {
+            target.Add(new LineBreak());
+        }
+
+        foreach (var inline in line)
+        {
+            target.Add(inline);
+        }
+    }
+
+    private List<Inline> ApplyInlines(
+        PendingProjectChanges changes,
+        IReadOnlyCollection<string>? explained = null)
+    {
+        var inlines = new List<Inline>();
+
+        foreach (var (name, change) in changes.PackageChanges)
+        {
+            AppendLine(inlines, ApplyLineInlines(name, change));
+        }
+
+        foreach (var line in ConflictLines(changes, explained))
+        {
+            AppendLine(inlines, [new Run(line)]);
+        }
+
+        foreach (var asset in changes.RemoveLegacyFiles.Concat(changes.RemoveLegacyFolders))
+        {
+            AppendLine(
+                inlines,
+                FormatInlines(
+                    localization["ProjectDetail.Change.RemoveLegacyAsset"],
+                    (asset.Path, false),
+                    (asset.PackageName, true)));
+        }
+
+        return inlines;
+    }
+
+    private IReadOnlyList<Inline> ApplyLineInlines(string name, PackageChange change)
+    {
+        if (change is not Install { Package: { } package })
+        {
+            return change switch
+            {
+                Install => FormatInlines(
+                    localization["ProjectDetail.Change.AddDependency"],
+                    (name, true)),
+                Remove remove => FormatInlines(
+                    localization[$"ProjectDetail.Change.Remove.{remove.Reason}"],
+                    (name, true)),
+                _ => [new Run(name)],
+            };
+        }
+
+        var display = DisplayNameOf(name, package);
+        var old = _project?.GetLocked(name)?.Version;
+
+        if (old is null)
+        {
+            return FormatInlines(
+                localization["ProjectDetail.Change.InstallLine"],
+                (display, true),
+                (package.Version.ToString(), true));
+        }
+
+        var comparison = package.Version.CompareTo(old);
+
+        return comparison switch
+        {
+            > 0 => FormatInlines(
+                localization["ProjectDetail.Change.UpgradeLine"],
+                (display, true),
+                (old.ToString(), false),
+                (package.Version.ToString(), true)),
+            < 0 => FormatInlines(
+                localization["ProjectDetail.Change.DowngradeLine"],
+                (display, true),
+                (old.ToString(), false),
+                (package.Version.ToString(), true)),
+            _ => FormatInlines(
+                localization["ProjectDetail.Change.ReinstallLine"],
+                (display, true),
+                (package.Version.ToString(), true)),
+        };
+    }
+
+    private string DisplayNameOf(string name, PackageInfo package)
+    {
+        var installed = _project?.AllInstalledPackages
+            .FirstOrDefault(x => string.Equals(x.Name, name, StringComparison.OrdinalIgnoreCase))
+            ?.DisplayName;
+
+        if (!string.IsNullOrWhiteSpace(installed))
+        {
+            return installed;
+        }
+
+        return string.IsNullOrWhiteSpace(package.Manifest.DisplayName)
+            ? name
+            : package.Manifest.DisplayName;
+    }
+
+    private IReadOnlyList<Inline> AffectedInlines(
+        IReadOnlyList<AffectedDependent> affected,
+        PendingProjectChanges? cascade)
+    {
+        var inlines = new List<Inline>();
+
+        foreach (var dependent in affected)
+        {
+            AppendLine(inlines, AffectedLineInlines(dependent, cascade));
+        }
+
+        return inlines;
+    }
+
+    private IReadOnlyList<Inline> AffectedLineInlines(
+        AffectedDependent dependent,
+        PendingProjectChanges? cascade)
+    {
+        var display = InstalledDisplayName(dependent.Name);
+
+        if (cascade?.PackageChanges
+                .FirstOrDefault(x => string.Equals(
+                    x.Key,
+                    dependent.Name,
+                    StringComparison.OrdinalIgnoreCase))
+                .Value is Install { Package: { } package })
+        {
+            var comparison = package.Version.CompareTo(dependent.Version);
+
+            if (comparison > 0)
+            {
+                return FormatInlines(
+                    localization["ProjectDetail.ApplyChanges.AffectedUpgradeLine"],
+                    (display, true),
+                    (dependent.Version.ToString(), false),
+                    (package.Version.ToString(), true));
+            }
+
+            if (comparison < 0)
+            {
+                return FormatInlines(
+                    localization["ProjectDetail.ApplyChanges.AffectedDowngradeLine"],
+                    (display, true),
+                    (dependent.Version.ToString(), false),
+                    (package.Version.ToString(), true));
+            }
+        }
+
+        return FormatInlines(
+            localization["ProjectDetail.ApplyChanges.AffectedLine"],
+            (display, true),
+            (dependent.Version.ToString(), false));
+    }
+
+    private string InstalledDisplayName(string name)
+    {
+        var display = _project?.AllInstalledPackages
+            .FirstOrDefault(x => string.Equals(x.Name, name, StringComparison.OrdinalIgnoreCase))
+            ?.DisplayName;
+
+        return string.IsNullOrWhiteSpace(display) ? name : display;
+    }
+
     private string TypeName(ProjectType type) => localization[$"ProjectType.{type}"];
 
     private void ReloadInstalled()
@@ -1666,14 +1963,33 @@ public sealed partial class ProjectDetailViewModel(
 
     private async Task SwitchVersionAsync(string name, string version)
     {
-        if (_project is null || IsBusy || _switchingVersion)
+        if (_project is null || IsBusy || _switchingVersion || HasPendingChanges)
         {
             return;
         }
 
-        if (!PackageVersion.TryParse(version, out var parsed))
+        var row = Installed.FirstOrDefault(x => x.Name == name);
+        if (row is null || !PackageVersion.TryParse(version, out var target)
+            || !PackageVersion.TryParse(row.Version, out var current) || target == current)
         {
+            ReloadInstalled();
             return;
+        }
+
+        var prepared = await ConfirmAndPlanAsync(upgradeDependents => PlanSwitchVersionAsync(
+            name, version, upgradeDependents, reportFailure: !upgradeDependents));
+        if (!prepared)
+        {
+            ReloadInstalled();
+        }
+    }
+
+    private async Task<bool> ConfirmAndPlanAsync(
+        Func<bool, Task<PendingProjectChanges?>> plan)
+    {
+        if (_project is null || IsBusy || _switchingVersion)
+        {
+            return false;
         }
 
         _switchingVersion = true;
@@ -1681,21 +1997,184 @@ public sealed partial class ProjectDetailViewModel(
         try
         {
             Status = null;
+            var fingerprint = await FingerprintAsync();
+            var generation = _loadGeneration;
 
+            var changes = await plan(false);
+
+            if (changes is null
+                || (changes.PackageChanges.Count == 0
+                    && changes.RemoveLegacyFiles.Count == 0
+                    && changes.RemoveLegacyFolders.Count == 0))
+            {
+                return false;
+            }
+
+            var affected = PackageOperations.FindAffectedDependents(
+                _project,
+                changes,
+                _allowPrerelease);
+
+            var explained = affected.Select(x => x.Name).ToList();
+
+            if (BlockingConflicts(changes, explained) is { Count: > 0 } blocking)
+            {
+                dialogs.ShowNotice(
+                    localization["ProjectDetail.VersionChange.ConflictTitle"],
+                    localization["ProjectDetail.VersionChange.ConflictHint"]
+                        + Environment.NewLine
+                        + Environment.NewLine
+                        + string.Join(Environment.NewLine, blocking),
+                    localization["Dialog.Confirm"]);
+
+                return false;
+            }
+
+            if (affected.Count == 0)
+            {
+                if (generation != _loadGeneration || fingerprint != await FingerprintAsync())
+                {
+                    Status = localization["ProjectDetail.ChangesStale"];
+                    return false;
+                }
+                await SetPendingAsync(changes, fingerprint: fingerprint);
+                return true;
+            }
+
+            PendingProjectChanges? cascade = null;
+
+            if (affected.Count > 0)
+            {
+                cascade = await plan(true);
+
+                if (cascade is not null
+                    && (PackageOperations.FindAffectedDependents(
+                            _project,
+                            cascade,
+                            _allowPrerelease).Count > 0
+                        || BlockingConflicts(cascade) is { Count: > 0 }))
+                {
+                    cascade = null;
+                }
+            }
+
+            var messageInlines = ApplyInlines(changes, explained);
+            var message = InlinesToText(messageInlines);
+            var detailTitle = affected.Count == 0
+                ? null
+                : localization["ProjectDetail.ApplyChanges.Incompatible"];
+            var detailBodyInlines = affected.Count == 0
+                ? null
+                : AffectedInlines(affected, cascade);
+            var detailBody = detailBodyInlines is null
+                ? null
+                : InlinesToText(detailBodyInlines);
+
+            var applied = changes;
+
+            if (cascade is null)
+            {
+                if (!dialogs.ShowConfirm(
+                        localization["ProjectDetail.ApplyChanges.Title"],
+                        message,
+                        localization["ProjectDetail.Apply"],
+                        detailTitle: detailTitle,
+                        detailBody: detailBody,
+                        width: 680,
+                        messageInlines: messageInlines,
+                        detailBodyInlines: detailBodyInlines))
+                {
+                    return false;
+                }
+            }
+            else
+            {
+                var choice = dialogs.ShowChoice(
+                    localization["ProjectDetail.ApplyChanges.Title"],
+                    message,
+                    localization["ProjectDetail.Apply.OnlyThis"],
+                    localization["ProjectDetail.Apply.All"],
+                    detailTitle: detailTitle,
+                    detailBody: detailBody,
+                    width: 680,
+                    messageInlines: messageInlines,
+                    detailBodyInlines: detailBodyInlines);
+
+                if (choice == ConfirmChoice.Cancel)
+                {
+                    return false;
+                }
+
+                if (choice == ConfirmChoice.Extra)
+                {
+                    applied = cascade;
+                }
+            }
+
+            IsBusy = true;
+
+            try
+            {
+                if (generation != _loadGeneration || fingerprint != await FingerprintAsync())
+                {
+                    Status = localization["ProjectDetail.ChangesStale"];
+                    return false;
+                }
+                await SetPendingAsync(applied, fingerprint: fingerprint);
+                return true;
+            }
+            catch (Exception exception) when (exception is not OperationCanceledException)
+            {
+                logger.LogWarning(exception, "应用包变更失败：{Project}", ProjectPath);
+
+                Status = localization.Format("ProjectDetail.ApplyFailed", exception.Message);
+
+                await LoadAsync();
+                return false;
+            }
+            finally
+            {
+                IsBusy = false;
+            }
+        }
+        finally
+        {
+            _switchingVersion = false;
+        }
+    }
+
+    private async Task<PendingProjectChanges?> PlanSwitchVersionAsync(
+        string name,
+        string version,
+        bool upgradeDependents = false,
+        bool reportFailure = true)
+    {
+        if (_project is null || !PackageVersion.TryParse(version, out var parsed))
+        {
+            return null;
+        }
+
+        try
+        {
             var outcome = await PackageOperations.SwitchVersionAsync(
                 _project,
                 Catalog(),
                 name,
                 parsed,
                 _allowPrerelease,
-                CancellationToken.None);
+                CancellationToken.None,
+                upgradeDependents);
 
             if (outcome.Status == AddPackageStatus.VersionNotFound)
             {
                 logger.LogWarning("指定的包版本不存在：{Project} {Package} {Version}", ProjectPath, name, version);
 
-                Status = localization.Format("ProjectDetail.VersionUnavailable", name, version);
-                return;
+                if (reportFailure)
+                {
+                    Status = localization.Format("ProjectDetail.VersionUnavailable", name, version);
+                }
+
+                return null;
             }
 
             if (outcome.Status != AddPackageStatus.Success)
@@ -1706,20 +2185,21 @@ public sealed partial class ProjectDetailViewModel(
                     name,
                     version,
                     ReportMissingDependencies(outcome.MissingDependencies));
-                return;
+                return null;
             }
 
-            await SetPendingAsync(outcome.Changes!);
+            return outcome.Changes;
         }
         catch (Exception exception) when (exception is not OperationCanceledException)
         {
             logger.LogWarning(exception, "切换包版本失败：{Project} {Package} {Version}", ProjectPath, name, version);
 
-            Status = localization.Format("ProjectDetail.VersionSwitchFailed", exception.Message);
-        }
-        finally
-        {
-            _switchingVersion = false;
+            if (reportFailure)
+            {
+                Status = localization.Format("ProjectDetail.VersionSwitchFailed", exception.Message);
+            }
+
+            return null;
         }
     }
 

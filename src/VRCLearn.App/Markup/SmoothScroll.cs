@@ -157,7 +157,8 @@ public static class SmoothScroll
             return;
         }
 
-        if (InnerScrollViewer(e.OriginalSource as DependencyObject, viewer) is not null)
+        if (InnerScrollViewer(e.OriginalSource as DependencyObject, viewer) is { } inner
+            && CanScrollFurther(inner, e.Delta))
         {
             return;
         }
@@ -208,6 +209,17 @@ public static class SmoothScroll
         }
 
         return null;
+    }
+
+    private static bool CanScrollFurther(ScrollViewer inner, int delta)
+    {
+        var target = Glides.TryGetValue(inner, out var glide)
+            ? glide.Target
+            : inner.VerticalOffset;
+
+        return delta < 0
+            ? target < inner.ScrollableHeight - Settle
+            : target > Settle;
     }
 
     private static DependencyObject? ParentOf(DependencyObject node) =>
