@@ -422,7 +422,43 @@
         <Setter Property="Appearance" Value="Secondary" />
     </Style>
 
-    <!-- The button's Tag supplies the refresh state. The icon slot stays the same size in both states. -->
+    <Style
+        x:Key="BusyRing"
+        BasedOn="{StaticResource {x:Type ui:ProgressRing}}"
+        TargetType="ui:ProgressRing">
+        <Setter Property="Width" Value="18" />
+        <Setter Property="Height" Value="18" />
+        <Setter Property="IsIndeterminate" Value="False" />
+        <Setter Property="VerticalAlignment" Value="Center" />
+        <Setter Property="RenderTransformOrigin" Value="0.5,0.5" />
+        <Setter Property="RenderTransform">
+            <Setter.Value>
+                <RotateTransform />
+            </Setter.Value>
+        </Setter>
+        <Setter Property="Visibility" Value="{Binding IsBusy, Converter={StaticResource BooleanToVisibilityConverter}}" />
+        <Style.Triggers>
+            <Trigger Property="IsVisible" Value="True">
+                <Trigger.EnterActions>
+                    <BeginStoryboard x:Name="Spin">
+                        <Storyboard>
+                            <DoubleAnimation
+                                RepeatBehavior="Forever"
+                                Storyboard.TargetProperty="(UIElement.RenderTransform).(RotateTransform.Angle)"
+                                From="0"
+                                To="360"
+                                Duration="0:0:1" />
+                        </Storyboard>
+                    </BeginStoryboard>
+                </Trigger.EnterActions>
+                <Trigger.ExitActions>
+                    <StopStoryboard BeginStoryboardName="Spin" />
+                </Trigger.ExitActions>
+            </Trigger>
+        </Style.Triggers>
+    </Style>
+
+    <!-- Tag carries the refresh state. The fixed slot keeps the label and neighboring controls in place. -->
     <Style
         x:Key="RefreshToolbarButton"
         BasedOn="{StaticResource ToolbarButton}"
@@ -439,7 +475,7 @@
                             <ui:ProgressRing
                                 Width="14"
                                 Height="14"
-                                IsIndeterminate="True"
+                                Style="{StaticResource BusyRing}"
                                 Visibility="{Binding Tag, RelativeSource={RelativeSource AncestorType=ui:Button}, Converter={StaticResource BooleanToVisibilityConverter}}" />
                         </Grid>
                         <TextBlock VerticalAlignment="Center" Text="{Binding}" />
@@ -450,28 +486,6 @@
         <Style.Triggers>
             <DataTrigger Binding="{Binding Tag, RelativeSource={RelativeSource Self}}" Value="True">
                 <Setter Property="IsEnabled" Value="False" />
-            </DataTrigger>
-        </Style.Triggers>
-    </Style>
-
-    <Style
-        x:Key="BusyRing"
-        BasedOn="{StaticResource {x:Type ui:ProgressRing}}"
-        TargetType="ui:ProgressRing">
-        <Setter Property="Width" Value="18" />
-        <Setter Property="Height" Value="18" />
-        <Setter Property="IsIndeterminate" Value="True" />
-        <Setter Property="VerticalAlignment" Value="Center" />
-        <Setter Property="Visibility" Value="{Binding IsBusy, Converter={StaticResource BooleanToVisibilityConverter}}" />
-    </Style>
-
-    <Style
-        x:Key="NonRefreshBusyRing"
-        BasedOn="{StaticResource BusyRing}"
-        TargetType="ui:ProgressRing">
-        <Style.Triggers>
-            <DataTrigger Binding="{Binding RefreshCommand.IsRunning}" Value="True">
-                <Setter Property="Visibility" Value="Collapsed" />
             </DataTrigger>
         </Style.Triggers>
     </Style>
