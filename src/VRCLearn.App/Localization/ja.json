@@ -805,5 +805,11 @@
   "ProjectDetail.BackupDoneSkipped": "バックアップ完了：{0}（使用中の Library ファイル {1} 件をスキップしました）",
   "Templates.Status.NoDefaultManifest": "Unity {0} の標準パッケージマニフェストが見つかりません。Unity のインストール状態を確認してから、もう一度お試しください。",
   "Plugins.Update": "更新",
-  "ProjectDetail.Conflict.Root": "プロジェクトマニフェストの dependencies に指定された「{0}」のバージョン要件を満たせません。"
+  "ProjectDetail.Conflict.Root": "プロジェクトマニフェストの dependencies に指定された「{0}」のバージョン要件を満たせません。",
+  "ProjectDetail.Batch.InstallShort": "インストール",
+  "ProjectDetail.Batch.UpgradeShort": "更新",
+  "ProjectDetail.Batch.ReinstallShort": "再インストール",
+  "ProjectDetail.Batch.RemoveShort": "削除",
+  "ProjectDetail.Batch.ClearShort": "選択解除",
+  "Repositories.Import": "インポート"
 }
