@@ -45,3 +45,9 @@ dotnet run --project src/VRCLearn.App/VRCLearn.App.csproj
 リリースには自己完結型の `net10.0-windows` / `win-x64` ビルドを使用します。製品バージョンは 3 つの数値で表し、3 チャンネルで最後の数値の連番を共有します。プレリリースのタグとインストーラーのファイル名には `-alpha` または `-beta` が付きます。各リリースにインストーラーと SHA256 チェックサムファイルが添付されます。
 
 Releases use self-contained `net10.0-windows` / `win-x64` builds. The three channels share one increasing patch sequence and use three-part product versions. Pre-release version labels include `-alpha` or `-beta` in tags and installer filenames. Each release includes the installer and a SHA256 checksum file.
+
+从上游 1.36.0 起，第三段显示为至少三位，001–099 对应该上游版本的构建 01–99，例如 `1.36.001-alpha`、`1.36.002-beta`、`1.36.003`。上游补丁版本递增时使用下一段百位区间，例如基于 1.36.1 的 `1.36.101`。三个渠道共用序列，失败运行也占用编号。已有版本保留。Windows 程序集的数字段会去除前导零，`1.36.001` 与 `1.36.1` 按相同数值比较。
+
+上流 1.36.0 以降は最後の数値を最低 3 桁で表示し、001–099 がその上流バージョンのビルド 01–99 に対応します。例は `1.36.001-alpha`、`1.36.002-beta`、`1.36.003` です。上流のパッチ番号が上がると次の 100 番台を使用します。上流 1.36.1 の最初の例は `1.36.101` です。3 チャンネルで連番を共有し、失敗した実行も番号を消費します。既存のリリースは保持します。Windows アセンブリの数値フィールドでは先頭のゼロが省略され、`1.36.001` と `1.36.1` は同じ数値として比較されます。
+
+Starting with upstream 1.36.0, the patch component is displayed with at least three digits. Values 001–099 represent builds 01–99 of that upstream version, such as `1.36.001-alpha`, `1.36.002-beta`, and `1.36.003`. An upstream patch increment moves to the next block of 100, such as `1.36.101` for upstream 1.36.1. All channels share the sequence, including failed runs. Existing releases are retained. Windows assembly numeric fields omit leading zeros, so `1.36.001` and `1.36.1` compare as the same version.

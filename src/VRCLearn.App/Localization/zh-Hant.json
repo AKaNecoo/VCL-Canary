@@ -803,7 +803,7 @@
   "Plugins.Catalog.Incompatible": "與當前啟動器的插件接口不兼容。",
   "Plugins.Catalog.NoPackage": "市場暫無可校驗的安裝包。",
   "Plugins.Catalog.ViewInstalled": "查看已安裝",
-  "Plugins.Catalog.Download": "下載并安裝",
+  "Plugins.Catalog.Download": "下載並安裝",
   "Plugins.Catalog.Unavailable": "無法安裝",
   "Plugins.Catalog.Downloading": "正在下載…",
   "Plugins.Catalog.DownloadTimeout": "下載插件超時，請重試。"
