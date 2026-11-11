@@ -215,7 +215,9 @@
                                 IsUnityRunning="{Binding IsUnityRunning}"
                                 LaunchCommand="{Binding OpenInUnityCommand}" />
                         </StackPanel>
-                        <ui:ProgressRing Margin="4,0,0,8" Style="{StaticResource NonRefreshBusyRing}" />
+                        <Grid Visibility="{Binding RefreshCommand.IsRunning, Converter={StaticResource InverseBooleanToVisibilityConverter}}">
+                            <ui:ProgressRing Margin="4,0,0,8" Style="{StaticResource BusyRing}" />
+                        </Grid>
                     </WrapPanel>
 
                     <StackPanel Margin="{StaticResource Gap.Small}" Orientation="Horizontal">
