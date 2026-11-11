@@ -23,10 +23,33 @@ public static class ProjectBackup
         BackupFormat format,
         IProgress<FileProgress>? progress,
         CancellationToken cancellationToken,
-        Func<string, Stream>? openFile = null)
+        Func<string, Stream>? openFile = null,
+        bool skipLockedLibraryFiles = false,
+        ICollection<string>? skippedFiles = null)
     {
         var total = content.Directories.Count + content.Files.Count;
         var done = 0;
+        var lastPercent = -1;
+
+        void Advance()
+        {
+            done++;
+
+            if (progress is null)
+            {
+                return;
+            }
+
+            var percent = total == 0 ? 100 : done * 100 / total;
+
+            if (percent == lastPercent && done != total)
+            {
+                return;
+            }
+
+            lastPercent = percent;
+            progress.Report(new FileProgress(total, done));
+        }
 
         var level = format switch
         {
@@ -42,30 +65,53 @@ public static class ProjectBackup
             cancellationToken.ThrowIfCancellationRequested();
 
             archive.CreateEntry($"{directory}/");
-            progress?.Report(new FileProgress(total, ++done));
+            Advance();
         }
 
         foreach (var file in content.Files)
         {
             cancellationToken.ThrowIfCancellationRequested();
 
-            await using var source = openFile is null
-                ? await io.OpenReadOrNullAsync(file, cancellationToken).ConfigureAwait(false)
-                : openFile(file);
+            Stream? source;
 
-            if (source is null)
+            try
             {
+                source = openFile is null
+                    ? await io.OpenReadOrNullAsync(file, cancellationToken).ConfigureAwait(false)
+                    : openFile(file);
+            }
+            catch (Exception exception) when (
+                skipLockedLibraryFiles
+                && IsLibraryEntry(file)
+                && exception is IOException or UnauthorizedAccessException)
+            {
+                skippedFiles?.Add(file);
+                Advance();
+
                 continue;
             }
 
-            await using (var target = archive.CreateEntry(file, level).Open())
+            if (source is null)
             {
+                Advance();
+
+                continue;
+            }
+
+            await using (source)
+            {
+                await using var target = archive.CreateEntry(file, level).Open();
+
                 await source.CopyToAsync(target, cancellationToken).ConfigureAwait(false);
             }
 
-            progress?.Report(new FileProgress(total, ++done));
+            Advance();
         }
     }
+
+    private static bool IsLibraryEntry(string relativePath) =>
+        relativePath.Equals("Library", StringComparison.OrdinalIgnoreCase)
+        || relativePath.StartsWith("Library/", StringComparison.OrdinalIgnoreCase);
 
     public const string Extension = ".zip";
 

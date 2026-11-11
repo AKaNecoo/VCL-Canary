@@ -1,7 +1,6 @@
 using System.IO;
 using System.Windows;
 using System.Windows.Controls;
-using System.Windows.Input;
 using System.Windows.Media.Animation;
 using System.Windows.Threading;
 using VRCLearn.App.Markup;
@@ -14,6 +13,7 @@ public partial class ProjectDetailPage : UserControl
 {
     private readonly DispatcherTimer _unityTimer;
     private int _backupsAnimation;
+    private bool _updatingBatchLayout;
 
     public ProjectDetailPage()
     {
@@ -21,8 +21,7 @@ public partial class ProjectDetailPage : UserControl
         DataContextChanged += (_, args) =>
         {
             var viewModel = args.NewValue as ProjectDetailViewModel;
-            InstalledPackageRows.Collection = viewModel?.FilteredInstalled;
-            AvailablePackageRows.Collection = viewModel?.Available;
+            PackageRows.Collection = viewModel?.PackageView;
         };
 
         _unityTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1) };
@@ -44,11 +43,55 @@ public partial class ProjectDetailPage : UserControl
         Unloaded += (_, _) => _unityTimer.Stop();
     }
 
-    private void OnJumpToAvailableClick(object sender, RoutedEventArgs e) =>
-        JumpToSection(AvailablePackagesSection, AvailablePackageSearchBox);
+    private void OnBatchToolbarLoaded(object sender, RoutedEventArgs e) => UpdateBatchLayout();
 
-    private void OnJumpToInstalledClick(object sender, RoutedEventArgs e) =>
-        JumpToSection(InstalledPackagesSection, InstalledPackageSearchBox);
+    private void OnBatchToolbarSizeChanged(object sender, SizeChangedEventArgs e) => UpdateBatchLayout();
+
+    private void UpdateBatchLayout()
+    {
+        if (_updatingBatchLayout || BatchToolbar?.IsLoaded != true)
+        {
+            return;
+        }
+
+        _updatingBatchLayout = true;
+        try
+        {
+            // Keep the whole strip on one line. Less frequent actions remain available in the menu.
+            FrameworkElement[] priority =
+            [
+                ReinstallSelectedButton, RemoveSelectedButton, ClearSelectionButton,
+                UpgradeSelectedButton, InstallSelectedButton, UpgradeAllButton,
+            ];
+            var size = new Size(double.PositiveInfinity, double.PositiveInfinity);
+            BatchTitle.Measure(size);
+            BatchMoreButton.Measure(size);
+            var available = Math.Max(0, BatchToolbar.ActualWidth - BatchTitle.DesiredSize.Width);
+            var total = BatchMoreButton.DesiredSize.Width;
+            foreach (var button in priority)
+            {
+                button.Visibility = Visibility.Visible;
+                button.InvalidateMeasure();
+                button.Measure(size);
+                total += button.DesiredSize.Width;
+            }
+
+            foreach (var button in priority)
+            {
+                if (total <= available + 0.5)
+                {
+                    break;
+                }
+
+                total -= button.DesiredSize.Width;
+                button.Visibility = Visibility.Collapsed;
+            }
+        }
+        finally
+        {
+            _updatingBatchLayout = false;
+        }
+    }
 
     private void OnBatchMoreClick(object sender, RoutedEventArgs e)
     {
@@ -64,7 +107,30 @@ public partial class ProjectDetailPage : UserControl
         PrereleaseUpgradeItem.Visibility = DataContext is ProjectDetailViewModel { ShowPrereleaseUpgrades: true }
             ? Visibility.Visible
             : Visibility.Collapsed;
+
+        (FrameworkElement Button, MenuItem Item)[] overflow =
+        [
+            (InstallSelectedButton, InstallSelectedOverflowItem),
+            (UpgradeSelectedButton, UpgradeSelectedOverflowItem),
+            (UpgradeAllButton, UpgradeAllOverflowItem),
+            (ReinstallSelectedButton, ReinstallSelectedOverflowItem),
+            (RemoveSelectedButton, RemoveSelectedOverflowItem),
+            (ClearSelectionButton, ClearSelectionOverflowItem),
+        ];
+        foreach (var (button, item) in overflow)
+        {
+            item.Visibility = button.Visibility == Visibility.Collapsed ? Visibility.Visible : Visibility.Collapsed;
+        }
+
+        BatchOverflowSeparator.Visibility = overflow.Any(x => x.Item.Visibility == Visibility.Visible)
+            ? Visibility.Visible : Visibility.Collapsed;
     }
+
+    private async void OnInstallSelectedClick(object sender, RoutedEventArgs e) =>
+        await ReviewBatchAsync(viewModel => viewModel.PrepareInstallSelectedAsync());
+
+    private async void OnUpgradeSelectedClick(object sender, RoutedEventArgs e) =>
+        await ReviewBatchAsync(viewModel => viewModel.PrepareSelectedUpgradesAsync());
 
     private async void OnUpgradeAllClick(object sender, RoutedEventArgs e) =>
         await ReviewBatchAsync(viewModel => viewModel.PrepareStableUpgradesAsync());
@@ -188,12 +254,12 @@ public partial class ProjectDetailPage : UserControl
         BackupsContent.BeginAnimation(MaxHeightProperty, collapse);
     }
 
-    private void OnUpgradeClick(object sender, MouseButtonEventArgs e)
+    private void OnUpgradeClick(object sender, RoutedEventArgs e)
     {
-        if (sender is FrameworkElement { DataContext: InstalledPackageViewModel { NewerVersion: { } version } package }
+        if (sender is FrameworkElement { DataContext: PackageRowViewModel { IsInstalled: true, NewerVersion: not null } package }
             && DataContext is ProjectDetailViewModel viewModel)
         {
-            _ = viewModel.SwitchToVersionAsync(package.Name, version);
+            _ = viewModel.SwitchToVersionAsync(package.Name, package.NewerVersion!);
         }
     }
 

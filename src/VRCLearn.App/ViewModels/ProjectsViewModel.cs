@@ -427,13 +427,9 @@ public sealed partial class ProjectsViewModel : PageViewModelBase, IPageViewMode
             return;
         }
 
-        var note = _dialogs.ShowNote(
-            _localization["Backups.Note.Title.New"],
-            "",
-            _localization["Backups.Note.Start"],
-            _localization["Backups.Note.Hint"]);
+        var options = _dialogs.ShowBackupOptions();
 
-        if (note is null)
+        if (options is null)
         {
             return;
         }
@@ -445,14 +441,19 @@ public sealed partial class ProjectsViewModel : PageViewModelBase, IPageViewMode
             project.Name,
             async () =>
             {
+                var skipped = new List<string>();
+
                 var record = await _backupRunner.RunAsync(
                     project.ProjectPath,
                     project.Name,
-                    note,
-                    auto: false,
+                    options.Note,
+                    options.IncludeLibrary,
+                    skipped,
                     CancellationToken.None);
 
-                ShowStatus(_localization.Format("Projects.Status.BackedUp", record.FileName));
+                ShowStatus(skipped.Count == 0
+                    ? _localization.Format("Projects.Status.BackedUp", record.FileName)
+                    : _localization.Format("Projects.Status.BackedUpSkipped", record.FileName, skipped.Count));
             },
             "Projects.Status.BackupFailed");
     }
@@ -594,8 +595,12 @@ public sealed partial class ProjectsViewModel : PageViewModelBase, IPageViewMode
         await ReloadAsync();
     }
 
+    [ObservableProperty]
+    private bool _isReloading;
+
     public async Task ReloadAsync()
     {
+        IsReloading = true;
         await _reloadGate.WaitAsync();
 
         try
@@ -605,6 +610,7 @@ public sealed partial class ProjectsViewModel : PageViewModelBase, IPageViewMode
         finally
         {
             _reloadGate.Release();
+            IsReloading = false;
         }
     }
 

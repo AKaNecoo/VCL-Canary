@@ -58,8 +58,8 @@ jobs:
           }
 
           $firstPatch = [int]$series.firstPatch
-          if ($firstPatch -lt 101 -or ($firstPatch % 100) -ne 1) {
-            throw 'The Canary patch range must start at 101, 201, 301, and so on.'
+          if ($firstPatch -lt 1 -or ($firstPatch % 100) -ne 1) {
+            throw 'The Canary patch range must start at 1, 101, 201, and so on.'
           }
 
           $upstream = [version]$base
@@ -67,7 +67,8 @@ jobs:
           if ($patch -gt 65534 -or $runNumber -gt 65534) {
             throw 'The Canary version exceeds the Windows assembly version range.'
           }
-          $canary = "$($upstream.Major).$($upstream.Minor).$patch"
+          $numeric = "$($upstream.Major).$($upstream.Minor).$patch"
+          $canary = "$($upstream.Major).$($upstream.Minor).$($patch.ToString('D3'))"
           $version = switch ($channel) {
             'stable' { $canary }
             default { "$canary-$channel" }
@@ -81,7 +82,7 @@ jobs:
 
           "channel=$channel", "version=$version", "tag=fork-v$version", "asset=$asset" >> $env:GITHUB_OUTPUT
           "BASE_VERSION=$base", "RELEASE_VERSION=$version", "DISPLAY_VERSION=$display", "RELEASE_TAG=fork-v$version",
-            "CANARY_PRODUCT_VERSION=$canary", "CANARY_ASSEMBLY_VERSION=$canary.0",
+            "CANARY_PRODUCT_VERSION=$canary", "CANARY_ASSEMBLY_VERSION=$numeric.0",
             "UPSTREAM_ASSEMBLY_VERSION=$base.$runNumber", "SETUP_ASSET=$asset" >> $env:GITHUB_ENV
 
       - name: Prepare release notes

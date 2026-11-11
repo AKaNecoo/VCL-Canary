@@ -8,12 +8,12 @@
 
 ## VCL Canary highlights
 
-- **Project packages.** Available packages appear below installed packages by default. Search each list separately or jump between them. Upgrade packages to newer stable versions in bulk, or reinstall packages with an available source at their locked versions.
+- **Project package management**  Manage installed and available packages in one searchable list. Install or upgrade selected packages, upgrade all packages to newer stable versions, or use the more menu to include prereleases or reinstall all packages with a known source at their locked versions. When space is limited, some bulk actions move into the more menu.
 - **In-app updates.** Subscribe to the stable, Beta, or Alpha channel. Once an eligible update has downloaded, install it right away or on the next launch.
 - **In-app plugin catalog.** Open **Plugins → Browse plugins** to find extensions, check compatibility, and download and install them.
 - **Archive with external local packages (experimental).** Enable the feature in Settings to preview and include directly referenced local UPM package directories or `.tgz` packages in an archive. The launcher removes the original project directory after verifying the archive.
 
-VCL Canary also manages VPM repositories and dependencies, creates and opens Unity projects, backs up and restores projects, organizes local `.unitypackage` files, supports project templates and local plugins, and handles `vcc://` links. The interface is available in Simplified Chinese, English, and Japanese.
+VCL Canary also manages VPM repositories and dependencies, creates and opens Unity projects, backs up and restores projects, organizes local `.unitypackage` files, supports project templates and local plugins, and handles `vcc://` links. The interface is available in Simplified Chinese, Traditional Chinese, English, and Japanese.
 
 ## Screenshot
 
