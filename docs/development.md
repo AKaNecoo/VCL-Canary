@@ -51,3 +51,9 @@ Releases use self-contained `net10.0-windows` / `win-x64` builds. The three chan
 上流 1.36.0 以降は最後の数値を最低 3 桁で表示し、001–099 がその上流バージョンのビルド 01–99 に対応します。例は `1.36.001-alpha`、`1.36.002-beta`、`1.36.003` です。上流のパッチ番号が上がると次の 100 番台を使用します。上流 1.36.1 の最初の例は `1.36.101` です。3 チャンネルで連番を共有し、失敗した実行も番号を消費します。既存のリリースは保持します。Windows アセンブリの数値フィールドでは先頭のゼロが省略され、`1.36.001` と `1.36.1` は同じ数値として比較されます。
 
 Starting with upstream 1.36.0, the patch component is displayed with at least three digits. Values 001–099 represent builds 01–99 of that upstream version, such as `1.36.001-alpha`, `1.36.002-beta`, and `1.36.003`. An upstream patch increment moves to the next block of 100, such as `1.36.101` for upstream 1.36.1. All channels share the sequence, including failed runs. Existing releases are retained. Windows assembly numeric fields omit leading zeros, so `1.36.001` and `1.36.1` compare as the same version.
+
+当前 dev 基于上游 1.37.1，从 `1.37.101-alpha` 开始使用 101–199 区间；后续 Beta 与正式版继续递增。
+
+現在の dev は上流 1.37.1 を基に `1.37.101-alpha` から 101–199 の範囲を使用し、Beta と正式版でも連番を継続します。
+
+The current dev branch is based on upstream 1.37.1 and starts at `1.37.101-alpha` in the 101–199 range. Beta and stable releases continue the same sequence.
