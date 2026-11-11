@@ -493,7 +493,7 @@
   "Backups.Restore.ConfirmButton": "復元",
   "Backups.Restore.Target": "次の場所に展開します：{0}",
   "Backups.Restore.UnityRunning": "Unity または Unity Hub が実行中です。終了してから続行してください。",
-  "Backups.Restore.Caches": "復元後はシェーダーなどのキャッシュを再構築するため、初回起動は少し遅くなります。",
+  "Backups.Restore.Caches": "Library を含まないバックアップを復元した場合、シェーダーなどのキャッシュが再構築されるため、初回の起動には時間がかかります。",
   "Backups.Status.Restoring": "「{0}」を復元しています…",
   "Backups.Status.Restored": "{0} に復元し、プロジェクト一覧に追加しました。",
   "Backups.Status.RestoredAlreadyListed": "{0} に復元しました。このフォルダーは既にプロジェクト一覧にあります。",
@@ -803,5 +803,13 @@
   "Settings.ManagerBackupHint": "バックアップの範囲を選択します。全体バックアップにはプロジェクト、リポジトリ一覧、リソースファイルも含まれるため、バックアップと復元に時間がかかる場合があります。",
   "Settings.ManagerBackup.FullHint": "設定、プロジェクト、リポジトリ一覧、リソースファイルを含めます。",
   "Settings.ManagerBackup.FullWarningTitle": "全体バックアップ",
-  "Plugins.OpenDirectory": "プラグインフォルダーを開く"
+  "Plugins.OpenDirectory": "プラグインフォルダーを開く",
+  "Backups.Options.Title": "バックアップのオプション",
+  "Backups.Options.Library": "シェーダーキャッシュ",
+  "Backups.Options.Warning": "特殊なシェーダーやカスタムシェーダーを使用する場合はオンにしてください。不明な場合はオンのままにしてください。",
+  "Projects.Status.BackedUpSkipped": "バックアップ完了：{0}（使用中の Library ファイル {1} 件をスキップしました）",
+  "ProjectDetail.BackupDoneSkipped": "バックアップ完了：{0}（使用中の Library ファイル {1} 件をスキップしました）",
+  "Templates.Status.NoDefaultManifest": "Unity {0} の標準パッケージマニフェストが見つかりません。Unity のインストール状態を確認してから、もう一度お試しください。",
+  "Plugins.Update": "更新",
+  "ProjectDetail.Conflict.Root": "プロジェクトマニフェストの dependencies に指定された「{0}」のバージョン要件を満たせません。"
 }

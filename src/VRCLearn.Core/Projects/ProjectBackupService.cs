@@ -7,7 +7,7 @@ public sealed class ProjectBackupService(IBackupStore store)
     public PortableProjectArchive PreparePortableArchive(UnityProject project) =>
         PortableProjectArchive.Prepare(project, store.Directory);
 
-    public Task<BackupRecord> CreateAsync(
+    public async Task<BackupRecord> CreateAsync(
         UnityProject project,
         string projectName,
         BackupFormat format,
@@ -16,24 +16,36 @@ public sealed class ProjectBackupService(IBackupStore store)
         CancellationToken cancellationToken,
         bool archive = false,
         string? note = null,
-        bool auto = false)
+        bool auto = false,
+        bool includeLibrary = false,
+        ICollection<string>? skippedFiles = null)
     {
-        var content = ProjectFiles.Collect(project, ProjectFileFilter.ForBackup());
+        var content = await Task.Run(
+            () => ProjectFiles.Collect(project, ProjectFileFilter.ForBackup(includeLibrary)),
+            cancellationToken).ConfigureAwait(false);
 
-        DiskSpace.Ensure(store.Directory, EstimateBytes(project, content));
+        var estimated = await Task.Run(
+            () => EstimateBytes(project, content),
+            cancellationToken).ConfigureAwait(false);
+
+        DiskSpace.Ensure(store.Directory, estimated);
 
         var request = new BackupCreateRequest(projectName, timestamp, archive, note, auto);
 
-        return store.CreateAsync(
+        return await store.CreateAsync(
             request,
-            (destination, token) => ProjectBackup.CreateAsync(
-                project.Io,
-                content,
-                destination,
-                format,
-                progress,
+            (destination, token) => Task.Run(
+                () => ProjectBackup.CreateAsync(
+                    project.Io,
+                    content,
+                    destination,
+                    format,
+                    progress,
+                    token,
+                    skipLockedLibraryFiles: includeLibrary,
+                    skippedFiles: skippedFiles),
                 token),
-            cancellationToken);
+            cancellationToken).ConfigureAwait(false);
     }
 
     public Task<BackupRecord> CreatePortableArchiveAsync(

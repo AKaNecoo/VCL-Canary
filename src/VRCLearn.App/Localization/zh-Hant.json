@@ -489,7 +489,7 @@
   "Backups.Restore.ConfirmButton": "還原",
   "Backups.Restore.Target": "將解壓縮到：{0}",
   "Backups.Restore.UnityRunning": "Unity 或 Unity Hub 正在執行，請先關閉再繼續。",
-  "Backups.Restore.Caches": "還原後著色器等快取要重建，第一次開啟會比較慢。",
+  "Backups.Restore.Caches": "如果備份不含 Library，還原後著色器等快取要重建，第一次開啟會比較慢。",
   "Backups.Status.Restoring": "正在還原「{0}」…",
   "Backups.Status.Restored": "已還原到 {0}，並加入專案列表。",
   "Backups.Status.RestoredAlreadyListed": "已還原到 {0}，該目錄已在專案列表中。",
@@ -806,5 +806,14 @@
   "Plugins.Catalog.Download": "下載並安裝",
   "Plugins.Catalog.Unavailable": "無法安裝",
   "Plugins.Catalog.Downloading": "正在下載…",
-  "Plugins.Catalog.DownloadTimeout": "下載插件超時，請重試。"
+  "Plugins.Catalog.DownloadTimeout": "下載插件超時，請重試。",
+  "Repositories.Import": "匯入",
+  "ProjectDetail.Conflict.Root": "專案清單 dependencies 對「{0}」的版本要求無法滿足。",
+  "Backups.Options.Title": "備份選項",
+  "Backups.Options.Library": "著色器快取",
+  "Backups.Options.Warning": "專案使用特殊或自訂著色器時，建議勾選此項；如不確定，請保持勾選。",
+  "Projects.Status.BackedUpSkipped": "備份完成：{0}（{1} 個 Library 檔案被占用，已跳過）",
+  "ProjectDetail.BackupDoneSkipped": "備份完成：{0}（{1} 個 Library 檔案被占用，已跳過）",
+  "Templates.Status.NoDefaultManifest": "找不到適用於 Unity {0} 的標準包清單。請確認該 Unity 安裝完整後重試。",
+  "Plugins.Update": "更新"
 }

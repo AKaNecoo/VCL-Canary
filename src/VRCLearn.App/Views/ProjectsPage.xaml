@@ -59,7 +59,7 @@
                         Appearance="Secondary"
                         Command="{Binding RefreshCommand}"
                         Content="{markup:Tr Projects.Refresh}"
-                        Tag="{Binding IsBusy}" />
+                        Tag="{Binding IsReloading}" />
                     <ui:Button
                         Style="{StaticResource ToolbarButton}"
                         Appearance="Secondary"

@@ -60,6 +60,7 @@ public static class AppServices
             .AddSingleton<IUnityLauncher, WindowsUnityLauncher>()
             .AddSingleton<IUnityHubLauncher, WindowsUnityHubLauncher>()
             .AddSingleton<IUnityEditorLocator, WindowsUnityEditorLocator>()
+            .AddSingleton<IUnityProjectTemplateManifest, UnityProjectTemplateManifest>()
             .AddSingleton<UnityEditorRegistration>()
             .AddSingleton<IUnityWindowActivator, WindowsUnityWindowActivator>()
             .AddSingleton<SystemCheckService>()

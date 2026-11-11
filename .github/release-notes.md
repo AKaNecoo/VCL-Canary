@@ -18,13 +18,7 @@ Get-FileHash .\VRCLearnLauncher-<版本>-win-x64-Setup.exe -Algorithm SHA256
 
 ## 本次更新
 
-- 项目详情改为一个包列表：已安装和可安装的包放在一起，可直接添加、升级、重装、移除，也支持批量操作
-- 升级包时自动升级它依赖的包；会影响其他包时先弹窗说明，可选择全部应用或只应用当前包
-- 升级按钮直接显示新版本号
-- 启动时发现新版本会提示，可直接打开下载页
-- 长列表和页面切换更流畅
-- 修复程序放着不动也会持续占用更多内存
-- 停止维护部分语言包
+- 修复降级包时，传递依赖降到项目清单声明版本以下会被误判为无法处理
 
 安装包暂未签名，首次运行时 Windows SmartScreen 可能提示；选择「更多信息」→「仍要运行」。
 
@@ -56,12 +50,6 @@ sha256sum -c VRCLearnLauncher-<version>-win-x64-Setup.exe.sha256
 
 ## What's new
 
-- Project details now show all packages in one list: installed and available packages together, with add, upgrade, reinstall and remove actions plus batch operations
-- Upgrading a package also upgrades its dependencies; if other packages are affected, a prompt lets you apply everything or only the current package
-- Upgrade buttons show the new version number
-- The launcher now prompts when a new version is available at startup and can open the download page
-- Long lists and page switches are smoother
-- Fixed memory usage growing while the launcher sits idle
-- Some language packs are no longer maintained
+- Fixed downgrades being blocked as unresolvable when the target version pulled a transitive dependency below the version declared in the project manifest
 
 The installer is not code-signed yet, so Windows SmartScreen may warn on first run. Choose "More info" and then "Run anyway".

@@ -493,7 +493,7 @@
   "Backups.Restore.ConfirmButton": "Restore",
   "Backups.Restore.Target": "Extracting to: {0}",
   "Backups.Restore.UnityRunning": "Unity or Unity Hub is running. Close it before continuing.",
-  "Backups.Restore.Caches": "Shaders and other caches are rebuilt after restoring; the first launch is slow.",
+  "Backups.Restore.Caches": "If the backup does not include Library, shader and other caches are rebuilt after restoring, so the first launch is slower.",
   "Backups.Status.Restoring": "Restoring \"{0}\"...",
   "Backups.Status.Restored": "Restored to {0} and added to the project list.",
   "Backups.Status.RestoredAlreadyListed": "Restored to {0}; the folder was already in the project list.",
@@ -803,5 +803,14 @@
   "Settings.ManagerBackupHint": "Choose a backup scope. A full backup packs projects, repository lists and resource files; both backup and restore may take a while.",
   "Settings.ManagerBackup.FullHint": "A full backup contains settings, projects, repository lists and resource files.",
   "Settings.ManagerBackup.FullWarningTitle": "Full backup",
-  "Plugins.OpenDirectory": "Open plugin folder"
+  "Plugins.OpenDirectory": "Open plugin folder",
+  "Repositories.Import": "Import",
+  "ProjectDetail.Conflict.Root": "The version requirement for \"{0}\" in the project manifest's dependencies cannot be satisfied.",
+  "Backups.Options.Title": "Backup options",
+  "Backups.Options.Library": "Shader cache",
+  "Backups.Options.Warning": "Check this option when the project uses special or custom shaders; if unsure, keep it checked.",
+  "Projects.Status.BackedUpSkipped": "Backup complete: {0} ({1} Library files were in use and skipped)",
+  "ProjectDetail.BackupDoneSkipped": "Backup complete: {0} ({1} Library files were in use and skipped)",
+  "Templates.Status.NoDefaultManifest": "No standard package manifest was found for Unity {0}. Check that the Unity installation is complete and try again.",
+  "Plugins.Update": "Update"
 }

@@ -613,13 +613,9 @@ public sealed partial class ProjectDetailViewModel(
             return;
         }
 
-        var note = dialogs.ShowNote(
-            localization["Backups.Note.Title.New"],
-            "",
-            localization["Backups.Note.Start"],
-            localization["Backups.Note.Hint"]);
+        var options = dialogs.ShowBackupOptions();
 
-        if (note is null)
+        if (options is null)
         {
             return;
         }
@@ -629,15 +625,20 @@ public sealed partial class ProjectDetailViewModel(
             ProjectName,
             async () =>
             {
+                var skipped = new List<string>();
+
                 var record = await backupRunner.RunAsync(
                     ProjectPath,
                     ProjectName,
-                    note,
-                    auto: false,
+                    options.Note,
+                    options.IncludeLibrary,
+                    skipped,
                     CancellationToken.None);
 
                 ReloadBackups();
-                Status = localization.Format("ProjectDetail.BackupDone", record.FileName);
+                Status = skipped.Count == 0
+                    ? localization.Format("ProjectDetail.BackupDone", record.FileName)
+                    : localization.Format("ProjectDetail.BackupDoneSkipped", record.FileName, skipped.Count);
             },
             "ProjectDetail.BackupFailed");
     }
@@ -1514,22 +1515,7 @@ public sealed partial class ProjectDetailViewModel(
 
         foreach (var (name, conflict) in changes.Conflicts)
         {
-            if (conflict.ConflictsWithUnity)
-            {
-                lines.Add(localization.Format("ProjectDetail.Conflict.Unity", name));
-            }
-
-            var conflicting = skip is null
-                ? conflict.ConflictingPackages
-                : conflict.ConflictingPackages.Where(x => !skip.Contains(x)).ToList();
-
-            if (conflicting.Count > 0)
-            {
-                lines.Add(localization.Format(
-                    "ProjectDetail.Conflict.Packages",
-                    name,
-                    Join(conflicting)));
-            }
+            AppendConflictLines(lines, name, conflict, skip);
 
             foreach (var unlocked in conflict.UnlockedNames)
             {
@@ -1552,25 +1538,41 @@ public sealed partial class ProjectDetailViewModel(
 
         foreach (var (name, conflict) in changes.Conflicts)
         {
-            if (conflict.ConflictsWithUnity)
-            {
-                lines.Add(localization.Format("ProjectDetail.Conflict.Unity", name));
-            }
-
-            var conflicting = skip is null
-                ? conflict.ConflictingPackages
-                : conflict.ConflictingPackages.Where(x => !skip.Contains(x)).ToList();
-
-            if (conflicting.Count > 0)
-            {
-                lines.Add(localization.Format(
-                    "ProjectDetail.Conflict.Packages",
-                    name,
-                    Join(conflicting)));
-            }
+            AppendConflictLines(lines, name, conflict, skip);
         }
 
         return lines;
+    }
+
+    private void AppendConflictLines(
+        List<string> lines,
+        string name,
+        ConflictInfo conflict,
+        HashSet<string>? skip)
+    {
+        if (conflict.ConflictsWithUnity)
+        {
+            lines.Add(localization.Format("ProjectDetail.Conflict.Unity", name));
+        }
+
+        var conflicting = skip is null
+            ? conflict.ConflictingPackages
+            : conflict.ConflictingPackages.Where(x => !skip.Contains(x)).ToList();
+
+        if (conflicting.Any(string.IsNullOrEmpty))
+        {
+            lines.Add(localization.Format("ProjectDetail.Conflict.Root", name));
+        }
+
+        var packages = conflicting.Where(x => !string.IsNullOrEmpty(x)).ToList();
+
+        if (packages.Count > 0)
+        {
+            lines.Add(localization.Format(
+                "ProjectDetail.Conflict.Packages",
+                name,
+                Join(packages)));
+        }
     }
 
     private static readonly Regex InlinePlaceholder = new(@"\{(\d)\}", RegexOptions.Compiled);

@@ -13,11 +13,30 @@ public sealed class ProjectBackupRunner(
 {
     private readonly SemaphoreSlim _one = new(1, 1);
 
-    public async Task<BackupRecord> RunAsync(
+    public Task<BackupRecord> RunAsync(
         string projectPath,
         string projectName,
         string note,
         bool auto,
+        CancellationToken cancellationToken) =>
+        RunQueuedAsync(projectPath, projectName, note, auto, false, null, cancellationToken);
+
+    public Task<BackupRecord> RunAsync(
+        string projectPath,
+        string projectName,
+        string note,
+        bool includeLibrary,
+        ICollection<string>? skippedFiles,
+        CancellationToken cancellationToken) =>
+        RunQueuedAsync(projectPath, projectName, note, false, includeLibrary, skippedFiles, cancellationToken);
+
+    private async Task<BackupRecord> RunQueuedAsync(
+        string projectPath,
+        string projectName,
+        string note,
+        bool auto,
+        bool includeLibrary,
+        ICollection<string>? skippedFiles,
         CancellationToken cancellationToken)
     {
         await _one.WaitAsync(cancellationToken);
@@ -27,10 +46,24 @@ public sealed class ProjectBackupRunner(
             if (Application.Current?.Dispatcher is { } dispatcher && !dispatcher.CheckAccess())
             {
                 return await dispatcher.InvokeAsync(
-                    () => RunCoreAsync(projectPath, projectName, note, auto, cancellationToken)).Task.Unwrap();
+                    () => RunCoreAsync(
+                        projectPath,
+                        projectName,
+                        note,
+                        auto,
+                        includeLibrary,
+                        skippedFiles,
+                        cancellationToken)).Task.Unwrap();
             }
 
-            return await RunCoreAsync(projectPath, projectName, note, auto, cancellationToken);
+            return await RunCoreAsync(
+                projectPath,
+                projectName,
+                note,
+                auto,
+                includeLibrary,
+                skippedFiles,
+                cancellationToken);
         }
         finally
         {
@@ -43,6 +76,8 @@ public sealed class ProjectBackupRunner(
         string projectName,
         string note,
         bool auto,
+        bool includeLibrary,
+        ICollection<string>? skippedFiles,
         CancellationToken cancellationToken) =>
         progress.RunAsync(
             localization["Progress.Backup"],
@@ -59,6 +94,8 @@ public sealed class ProjectBackupRunner(
                     reporter,
                     cancellationToken,
                     note: note,
-                    auto: auto);
+                    auto: auto,
+                    includeLibrary: includeLibrary,
+                    skippedFiles: skippedFiles);
             });
 }

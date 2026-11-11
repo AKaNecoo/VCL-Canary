@@ -493,7 +493,7 @@
   "Backups.Restore.ConfirmButton": "还原",
   "Backups.Restore.Target": "将解压到：{0}",
   "Backups.Restore.UnityRunning": "Unity 或 Unity Hub 正在运行，请先关闭再继续。",
-  "Backups.Restore.Caches": "还原后首次打开项目需要重建着色器等缓存，可能耗时较长。",
+  "Backups.Restore.Caches": "如果备份不含 Library，还原后着色器等缓存要重建，第一次打开会比较慢。",
   "Backups.Status.Restoring": "正在还原「{0}」…",
   "Backups.Status.Restored": "已还原到 {0}，并加入项目列表。",
   "Backups.Status.RestoredAlreadyListed": "已还原到 {0}，该目录已在项目列表中。",
@@ -806,5 +806,14 @@
   "Settings.ManagerBackupHint": "选择备份范围。全量会打包项目、仓库列表与资源库文件，备份和恢复都可能耗时较长。",
   "Settings.ManagerBackup.FullHint": "全量备份包含配置、项目、仓库列表与资源库文件。",
   "Settings.ManagerBackup.FullWarningTitle": "全量备份",
-  "Plugins.OpenDirectory": "打开插件目录"
+  "Plugins.OpenDirectory": "打开插件目录",
+  "Repositories.Import": "导入",
+  "ProjectDetail.Conflict.Root": "项目清单 dependencies 对「{0}」的版本要求无法满足。",
+  "Backups.Options.Title": "备份选项",
+  "Backups.Options.Library": "着色器缓存",
+  "Backups.Options.Warning": "项目使用特殊或自定义着色器时，建议勾选此项；如不确定，请保持勾选。",
+  "Projects.Status.BackedUpSkipped": "备份完成：{0}（{1} 个 Library 文件被占用，已跳过）",
+  "ProjectDetail.BackupDoneSkipped": "备份完成：{0}（{1} 个 Library 文件被占用，已跳过）",
+  "Templates.Status.NoDefaultManifest": "找不到适用于 Unity {0} 的标准包清单。请确认该 Unity 安装完整后重试。",
+  "Plugins.Update": "更新"
 }
